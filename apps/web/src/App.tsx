@@ -16,6 +16,8 @@ const SecurityCenterView = lazy(() => import('./features/security/SecurityCenter
 const LoginView = lazy(() => import('./features/auth/LoginView.js').then(m => ({ default: m.LoginView })));
 const RegisterView = lazy(() => import('./features/auth/RegisterView.js').then(m => ({ default: m.RegisterView })));
 const LandingView = lazy(() => import('./features/landing/LandingView.js').then(m => ({ default: m.LandingView })));
+const SettingsView = lazy(() => import('./features/settings/SettingsView.js').then(m => ({ default: m.SettingsView })));
+const LegalView = lazy(() => import('./features/legal/LegalView.js').then(m => ({ default: m.LegalView })));
 
 const LoadingFallback: React.FC = () => (
   <div className="flex items-center justify-center p-12 text-muted-foreground font-mono text-xs gap-2">
@@ -68,6 +70,7 @@ export const App: React.FC = () => {
         <Routes>
           <Route path="/landing" element={<LandingView />} />
           <Route path="/showcase" element={<LandingView />} />
+          <Route path="/legal" element={<LegalView />} />
 
           <Route
             path="/login"
@@ -91,6 +94,8 @@ export const App: React.FC = () => {
             <Route path="network" element={<EvidenceGraphView />} />
             <Route path="privacy" element={<PrivacyCenterView />} />
             <Route path="security" element={<SecurityCenterView />} />
+            <Route path="settings" element={<SettingsView />} />
+            <Route path="legal" element={<LegalView />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

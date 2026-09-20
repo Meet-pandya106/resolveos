@@ -20,7 +20,9 @@ import {
   Sparkles,
   Menu,
   X,
-  ExternalLink
+  ExternalLink,
+  Settings,
+  Scale
 } from 'lucide-react';
 
 export const AppLayout: React.FC = () => {
@@ -112,6 +114,15 @@ export const AppLayout: React.FC = () => {
             title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
           >
             {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+
+          {/* Settings Button */}
+          <button
+            onClick={() => navigate('/settings')}
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            title="Workspace Settings"
+          >
+            <Settings className="w-4 h-4" />
           </button>
 
           <div className="h-4 w-px bg-border mx-1" />
@@ -246,6 +257,36 @@ export const AppLayout: React.FC = () => {
             >
               <Lock className="w-4 h-4" />
               <span>Security Vault</span>
+            </NavLink>
+
+            <NavLink
+              to="/settings"
+              onClick={() => setMobileMenuOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                  isActive
+                    ? 'bg-primary text-primary-foreground font-semibold shadow-glow-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                }`
+              }
+            >
+              <Settings className="w-4 h-4" />
+              <span>Workspace Settings</span>
+            </NavLink>
+
+            <NavLink
+              to="/legal"
+              onClick={() => setMobileMenuOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                  isActive
+                    ? 'bg-primary text-primary-foreground font-semibold shadow-glow-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                }`
+              }
+            >
+              <Scale className="w-4 h-4" />
+              <span>Legal & Compliance</span>
             </NavLink>
 
             <div className="pt-4 px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-bold">

@@ -230,6 +230,7 @@ Client IP: 192.168.1.104 requested password reset for card 4532-8921-9902-1234.`
             <a href="#sandbox" className="hover:text-primary transition-colors">PII Redactor</a>
             <a href="#security" className="hover:text-primary transition-colors">OWASP ASVS Defense</a>
             <a href="#architecture" className="hover:text-primary transition-colors">Tech Architecture</a>
+            <button onClick={() => navigate('/legal')} className="hover:text-primary transition-colors">Legal & Compliance</button>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -660,6 +661,12 @@ Client IP: 192.168.1.104 requested password reset for card 4532-8921-9902-1234.`
               <span>GitHub: Meet-pandya106/resolveos</span>
               <ExternalLink className="w-3 h-3" />
             </a>
+            <button
+              onClick={() => navigate('/legal')}
+              className="hover:text-primary transition-colors"
+            >
+              Legal & Compliance
+            </button>
             <span>MIT License</span>
             <span>Zero Telemetry</span>
           </div>
