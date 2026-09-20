@@ -1,36 +1,79 @@
 # ResolveOS
 
-Turn messy engineering problems into structured, evidence-backed resolution work.
+Turn messy engineering problems into structured, evidence-backed resolutions.
 
-ResolveOS is a self-hosted problem-resolution and incident-management application for engineering, security, and operations teams. It organizes an investigation from the initial problem statement through evidence collection, competing hypotheses, root-cause analysis, solution selection, actions, verification, resolution, and retrospective.
+ResolveOS is a self-hosted problem-resolution platform for engineering, security, SRE, and operations teams.
 
-The project is designed as a production-oriented, single-node deployment backed by PostgreSQL. It is not intended to be a hyperscale SaaS platform, multi-region distributed system, or enterprise SSO product.
+It provides a structured workflow for investigating technical problems from the initial problem statement through evidence collection, competing hypotheses, root-cause analysis, solution evaluation, corrective actions, verification, resolution, and retrospective review.
+
+ResolveOS is intentionally designed as a focused, production-oriented, single-node application. It is not intended to be a hyperscale SaaS platform, multi-region distributed control plane, or enterprise identity platform.
+
+---
+
+## Why ResolveOS?
+
+Technical incidents frequently become fragmented across:
+- tickets
+- chat threads
+- logs
+- dashboards
+- screenshots
+- temporary notes
+- individual assumptions
+
+ResolveOS keeps the investigation connected in one case model:
+
+```text
+Problem
+   ↓
+Symptoms
+   ↓
+Evidence
+   ↓
+Questions
+   ↓
+Hypotheses
+   ↓
+Root Cause
+   ↓
+Solutions
+   ↓
+Decision
+   ↓
+Actions
+   ↓
+Verification
+   ↓
+Resolution
+   ↓
+Retrospective
+```
+
+The objective is not simply to record that something broke. It is to preserve what was observed, what evidence was considered, what was decided, what was changed, and how the result was verified.
 
 ---
 
 ## Table of Contents
 
-- [What ResolveOS Does](#what-resolveos-does)
 - [Core Workflow](#core-workflow)
-- [Who It Is For](#who-it-is-for)
 - [Key Capabilities](#key-capabilities)
 - [Architecture](#architecture)
-- [Repository Structure](#repository-structure)
 - [Technology Stack](#technology-stack)
-- [Security Model](#security-model)
-- [AI Processing](#ai-processing)
+- [Repository Structure](#repository-structure)
+- [Database and Persistence](#database-and-persistence)
+- [Authentication and Authorization](#authentication-and-authorization)
+- [Realtime and Offline Operation](#realtime-and-offline-operation)
+- [AI Assistance](#ai-assistance)
+- [Security](#security)
 - [Privacy and Data Handling](#privacy-and-data-handling)
-- [Offline and Real-Time Behavior](#offline-and-real-time-behavior)
+- [Scope and Boundaries](#scope-and-boundaries)
+- [Known Engineering Limitations](#known-engineering-limitations)
 - [Requirements](#requirements)
-- [Local Development](#local-development)
-- [Database Configuration](#database-configuration)
-- [Demo Data](#demo-data)
-- [Production Deployment Model](#production-deployment-model)
-- [Docker](#docker)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
+- [Database Operations](#database-operations)
+- [Production Deployment](#production-deployment)
 - [Testing and Verification](#testing-and-verification)
-- [Configuration Reference](#configuration-reference)
-- [Architectural Boundaries](#architectural-boundaries)
-- [Known Limitations and Release Notes](#known-limitations-and-release-notes)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [Security Reporting](#security-reporting)
@@ -38,179 +81,193 @@ The project is designed as a production-oriented, single-node deployment backed 
 
 ---
 
-## What ResolveOS Does
-
-Most engineering incidents are not difficult because teams lack a ticketing system. They are difficult because the diagnostic context becomes fragmented.
-
-A typical investigation may involve:
-- an incident ticket;
-- logs and monitoring screenshots;
-- chat messages and hypotheses;
-- measurements taken at different times;
-- competing proposed fixes;
-- decisions whose rationale is lost later; and
-- a resolution that is declared without a reproducible verification record.
-
-ResolveOS puts those artifacts into one case and gives the case an explicit lifecycle.
-
-The application is centered on the idea that a problem should move from observation $\to$ evidence $\to$ reasoning $\to$ decision $\to$ action $\to$ verification, rather than jumping directly from symptom to fix.
-
----
-
 ## Core Workflow
 
-A ResolveOS case is organized around the following workflow:
+ResolveOS models a problem as a structured investigation rather than a generic ticket.
 
-```text
-Problem Definition
-        ↓
-Symptom Quantification
-        ↓
-Evidence Collection / Corroboration
-        ↓
-Questions & Inquiry
-        ↓
-Competing Hypotheses
-        ↓
-Root Cause Analysis
-  ├── 5 Whys
-  └── Fishbone / Ishikawa
-        ↓
-Solution Evaluation
-        ↓
-Decision Record
-        ↓
-Action Plan
-        ↓
-Verification
-        ↓
-Resolution
-        ↓
-Post-Incident Retrospective
-```
+### 1. Problem Definition
+Capture baseline facts such as:
+- expected behavior
+- observed behavior
+- impact
+- affected users
+- environment
+- frequency
+- constraints
+- relevant timing and context
 
-The application also enforces a case state machine. In particular, a case cannot normally enter `RESOLVED` without a passed verification condition; an owner-level override path exists where the documented rules permit it.
+ResolveOS also includes a problem-statement completeness score to identify missing investigation context.
 
----
+### 2. Symptoms
+Record observable and measurable symptoms before committing to an explanation.
 
-## Who It Is For
+### 3. Evidence
+Associate investigation evidence with the case so that reasoning can remain connected to the underlying observations.
 
-ResolveOS is aimed at teams that need structured technical investigations rather than a generic issue list.
+### 4. Questions
+Record unresolved questions that the investigation needs to answer.
 
-### Engineering and SRE
-Use cases include:
-- production incidents;
-- latency and reliability investigations;
-- recurring failures;
-- dependency and infrastructure problems;
-- engineering regressions; and
-- post-incident reviews.
+### 5. Hypotheses
+Document competing explanations and update them as evidence changes. Where AI is enabled, AI-generated hypotheses remain non-authoritative suggestions.
 
-### Security and Operations
-Relevant use cases include:
-- security incident investigation;
-- evidence tracking;
-- auditability of investigative changes;
-- sensitive-data handling before optional external AI processing; and
-- controlled workspace access.
+### 6. Root Cause Analysis
+The domain layer supports:
+- recursive 5 Whys
+- Ishikawa / Fishbone analysis
+- cause relationships
 
-### Engineering Leads and Architects
-The workflow can also preserve:
-- competing hypotheses;
-- root-cause reasoning;
-- solution trade-offs;
-- decision context; and
-- follow-up actions.
+### 7. Solution Evaluation
+Compare candidate solutions using explicit criteria such as:
+- impact
+- effort
+- risk
+- cost
+- implementation time
 
-ResolveOS does not replace specialized monitoring, SIEM, APM, ticketing, or observability products. It is the structured investigation and resolution layer around the information those systems produce.
+The purpose is to make trade-offs visible rather than leaving them only in informal discussion.
+
+### 8. Decision
+Record the selected approach and the reasoning behind it.
+
+### 9. Actions
+Track corrective work, ownership, deadlines, and completion.
+
+### 10. Verification
+Define what must be true for the change to be considered successful and compare the expected outcome with the observed outcome.
+
+### 11. Resolution
+The server-side domain rules enforce a resolution gate. Normal resolution requires the applicable verification condition; an explicitly authorized owner override is handled as a separate controlled path and recorded.
+
+### 12. Retrospective
+Capture lessons learned, missed signals, monitoring improvements, and preventive actions.
 
 ---
 
 ## Key Capabilities
 
-### Structured problem definition
-- Problem Statement Quality Meter with a 0–100 completeness score.
-- Expected vs observed behavior capture.
-- Impact, affected users, environment, frequency, severity, and constraints.
+### Investigation
+- Structured problem statements
+- Problem completeness scoring
+- Symptom and impact tracking
+- Evidence records
+- Investigation questions
+- Competing hypotheses
+- Root-cause analysis (5 Whys, Fishbone / Ishikawa)
+- Weighted solution evaluation
+- Decision records
+- Corrective actions
+- Verification criteria
+- Retrospectives
 
-### Evidence management
-- Evidence records associated with a case.
-- Evidence confidence/status metadata.
-- Attachments and supporting artifacts where enabled.
-- Relationship tracking between evidence and investigative entities.
+### Collaboration
+- Workspace-based organization
+- Workspace roles (`OWNER`, `ADMIN`, `MEMBER`, `VIEWER`)
+- Realtime case updates
+- Unified search / command palette
+- Case relationship visualization
+- Offline mutation queue
+- Conflict reporting
 
-### Hypothesis and root-cause analysis
-- Competing hypothesis states such as `UNTESTED`, `SUPPORTED`, `WEAKENED`, `REJECTED`, and `CONFIRMED`.
-- Recursive 5 Whys analysis.
-- Fishbone / Ishikawa categories.
+### Data and Auditability
+- PostgreSQL persistence
+- Transaction support
+- JSON/CSV export
+- Session tracking
+- Tamper-evident audit chaining
+- Workspace-scoped access control
 
-### Solution evaluation
-- Multi-criteria solution scoring.
-- Cost, effort, risk, impact, and time-to-implement inputs.
-- Explicit solution selection and decision records.
+### Security
+- Password hashing with `crypto.scrypt`
+- TOTP-based MFA & Recovery codes
+- Session revocation
+- Server-side authorization
+- IDOR/BOLA regression coverage
+- SSRF protections
+- Path traversal protections
+- Request rate limiting
+- Zod input validation
+- Short-lived, single-use WebSocket tickets
 
-### Verification and lifecycle enforcement
-- Expected vs observed verification results.
-- Verification status used by the domain state machine.
-- Restricted transition to `RESOLVED` unless the verification invariant is satisfied or an authorized override path is used.
-
-### Decision and action management
-- Decision records with context, reasoning, assumptions, and revision information.
-- Action tracking with ownership, priority, status, and deadlines.
-- Kanban-style action workflows in the web application.
-
-### Search and visualization
-- Global search / command palette.
-- Interactive Three.js case relationship visualization.
-
-### Offline-capable operation
-- Client-side mutation queue for network interruptions.
-- Field-level 3-way conflict detection.
-- Explicit conflict reporting during synchronization.
-
-### Real-time collaboration
-- WebSocket-based case updates.
-- Workspace authorization on realtime subscriptions.
-- Short-lived single-use WebSocket tickets in the normal production authentication flow.
+### Optional AI
+- AI can be disabled
+- Deterministic/local behavior
+- OpenAI-compatible provider support
+- Consent-aware processing
+- Prompt isolation
+- Pattern-based PII/secret redaction
+- Evidence citation validation
+- Non-authoritative AI output
 
 ---
 
 ## Architecture
 
-ResolveOS is a monorepo containing a React web application, Fastify API, reusable TypeScript packages, and automated tests.
+ResolveOS is a TypeScript monorepo with two applications and shared packages.
 
 ```text
-                           ResolveOS
-                               │
-                 ┌─────────────┴─────────────┐
-                 │                           │
-          React Web App                 Fastify API
-          apps/web                      apps/api
-                 │                           │
-                 │                    ┌──────┼─────────────┐
-                 │                    │      │             │
-                 │                 Auth/RBAC AI        WebSockets
-                 │                    │      │             │
-                 └───────────────┬────┴──────┴─────────────┘
-                                 │
-                       Domain / Validation / Security
-                                 │
-                                 ▼
-                          PostgreSQL Database
+                         ┌─────────────────────┐
+                         │      React SPA       │
+                         │      apps/web        │
+                         └──────────┬──────────┘
+                                    │
+                              HTTPS / WSS
+                                    │
+                         ┌──────────▼──────────┐
+                         │      Fastify API     │
+                         │      apps/api        │
+                         └───────┬──────┬──────┘
+                                 │      │
+                    ┌────────────┘      └─────────────┐
+                    │                                  │
+          ┌─────────▼──────────┐             ┌────────▼────────┐
+          │ Domain / Validation │             │ Optional AI     │
+          │ Security packages   │             │ provider        │
+          └─────────┬──────────┘             └────────┬────────┘
+                    │                                  │
+                    ▼                                  ▼
+             ┌───────────────┐                   Redaction +
+             │  PostgreSQL   │                   evidence checks
+             └───────────────┘
 ```
 
-### Package responsibilities
+### Runtime Model
 
-| Package / App | Responsibility |
+The current supported deployment model is:
+
+```text
+One application instance
+        │
+        ├── Fastify API
+        ├── process-local realtime/auth state
+        │
+        ▼
+   PostgreSQL
+        │
+        ▼
+React frontend
+(separate static host / reverse proxy)
+```
+
+The single-instance boundary matters because some ephemeral state, including WebSocket ticket state and TOTP replay protection, is process-local.
+
+---
+
+## Technology Stack
+
+| Layer | Technology |
 |---|---|
-| `packages/shared` | Shared domain types, enums, DTOs, and event contracts |
-| `packages/domain` | Business rules, state transitions, problem scoring, 5 Whys, solution evaluation, conflict logic |
-| `packages/validation` | Zod-based request, mutation, and export validation |
-| `packages/security` | Password hashing, TOTP primitives, redaction rules, SSRF checks, path sanitization |
-| `packages/database` | Database abstraction, PostgreSQL driver, in-memory test/dev driver, migrations, query execution |
-| `apps/api` | Fastify HTTP API, authentication, authorization, cases, privacy, search, AI, sync, audit, WebSockets |
-| `apps/web` | React SPA, routing, state, API/query integration, case UI, Three.js visualization |
-| `tests` | Unit, integration, security, and lifecycle/E2E coverage |
+| **Frontend** | React, Vite, TypeScript, Tailwind CSS |
+| **Frontend state/data** | Zustand, TanStack Query |
+| **Visualization** | Three.js / WebGL |
+| **Backend** | Fastify, TypeScript |
+| **Validation** | Zod |
+| **Database** | PostgreSQL |
+| **Database driver** | `pg` |
+| **Authentication** | JWT, sessions, TOTP |
+| **Password hashing** | Node.js `crypto.scrypt` |
+| **Realtime** | WebSockets |
+| **Testing** | Vitest |
+| **Containerization** | Docker / Docker Compose |
 
 ---
 
@@ -220,11 +277,17 @@ ResolveOS is a monorepo containing a React web application, Fastify API, reusabl
 resolveos/
 ├── apps/
 │   ├── api/
-│   │   ├── src/
-│   │   └── package.json
+│   │   └── src/
+│   │       ├── middleware/
+│   │       ├── routes/
+│   │       ├── services/
+│   │       └── scripts/
 │   └── web/
-│       ├── src/
-│       └── package.json
+│       └── src/
+│           ├── components/
+│           ├── pages/
+│           ├── stores/
+│           └── lib/
 │
 ├── packages/
 │   ├── shared/
@@ -241,576 +304,545 @@ resolveos/
 │
 ├── docs/
 ├── scripts/
-├── .github/workflows/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── .env.example
 ├── package.json
-└── README.md
+└── package-lock.json
 ```
 
----
+### Package Responsibilities
 
-## Technology Stack
-
-### Frontend
-- React 18
-- Vite
-- TypeScript
-- React Router
-- Zustand
-- TanStack Query
-- Tailwind CSS
-- Three.js / WebGL
-- Zod
-
-### Backend
-- Node.js 20+
-- Fastify 5
-- `@fastify/cookie`
-- `@fastify/cors`
-- `@fastify/helmet`
-- `@fastify/jwt`
-- `@fastify/rate-limit`
-- `@fastify/websocket`
-- PostgreSQL driver (`pg`)
-- Zod
-
-### Database
-- PostgreSQL for persistent production/self-hosted deployments.
-- In-memory / file-backed memory storage is retained for development and unit-test scenarios.
-
-### Testing and Tooling
-- Vitest
-- TypeScript compiler
-- Biome
-- Docker / Docker Compose
-
-The repository is versioned as `1.0.0` in the current package metadata.
+| Package | Responsibility |
+|---|---|
+| `@resolveos/shared` | Shared models, enums, DTOs, and event contracts |
+| `@resolveos/domain` | State machine, problem scoring, root-cause logic, solution scoring, merge logic |
+| `@resolveos/validation` | Zod validation schemas and input contracts |
+| `@resolveos/security` | Password hashing, TOTP, redaction, SSRF/path defenses |
+| `@resolveos/database` | Database abstraction, PostgreSQL driver, development store, migrations, query builders |
+| `@resolveos/api` | Fastify API, authentication, workspaces, cases, privacy, AI, exports, sync, WebSockets |
+| `@resolveos/web` | React UI, application state, API integration, offline behavior, visualization |
 
 ---
 
-## Security Model
+## Database and Persistence
 
-ResolveOS uses multiple security controls at application and domain boundaries.
+### PostgreSQL
+PostgreSQL is the canonical persistent database for production and self-hosted deployments.
 
-### Authentication
-- Password hashing uses Node.js `crypto.scrypt` with per-password random salts.
-- JWT authentication is combined with server-side session lookup/revocation behavior.
-- TOTP-based MFA follows RFC 6238 and includes replay protection and recovery codes.
-- Device/session management supports revocation.
+The database layer includes:
+- PostgreSQL connection pooling through `pg`
+- parameterized SQL generation
+- transaction support
+- committed schema migrations
+- production checks that reject the development memory/JSON store
 
-### Authorization and tenant isolation
-- Workspace membership and role checks are enforced server-side (`OWNER`, `ADMIN`, `MEMBER`, `VIEWER`). Case and nested case resources are expected to verify workspace access before reading or mutating data.
-- The client UI is not treated as a security boundary.
+A production deployment requires a PostgreSQL `DATABASE_URL`.
 
-### WebSocket security
-- The normal production flow uses short-lived, single-use WebSocket tickets. The ticket store is process-local and therefore assumes a single application instance for consistent ticket/replay behavior.
+### Development storage
+The repository also contains a local `MemoryStore`. It is useful for:
+- unit tests
+- development experiments
+- synthetic/demo data
 
-### SSRF protection
-- The security package contains checks for private/loopback address ranges, link-local addresses, IPv6 ULA ranges, cloud metadata addresses, and DNS-resolution-based checks.
-- These controls are defensive application logic; they should not be described as a universal guarantee against every possible SSRF technique in every deployment environment.
+It is not a production persistence layer. A local JSON-backed development store must not be treated as equivalent to PostgreSQL.
 
-### Path sanitization
-- Attachment/path handling includes decoding, control-character stripping, separator normalization, and traversal-oriented sanitization.
+### Migrations
+The database package contains asynchronous migration functionality.
 
-### Audit trail
-- The application maintains a cryptographically chained audit/event structure intended to be tamper-evident. This should not be interpreted as immutable storage or an independently certified forensic chain of custody.
+The current API startup does not automatically execute migrations, and the repository does not currently expose a canonical root-level `db:migrate` command.
 
-### Rate limiting and HTTP hardening
-Fastify plugins are used for:
-- security headers;
-- CORS restrictions;
-- request rate limits; and
-- authenticated cookies/JWT handling.
+Therefore, a fresh PostgreSQL deployment must explicitly execute the available migration mechanism before application use.
+
+### Demo seeding
+The current `npm run db:seed` command is a development/demo fixture path and targets the local development store. It is not a PostgreSQL production seed operation.
 
 ---
 
-## AI Processing
+## Authentication and Authorization
 
-AI is optional and is not required for the core ResolveOS workflow.
+ResolveOS provides:
+- password authentication
+- JWT authentication
+- server-side session records
+- session revocation
+- workspace membership
+- role-based authorization
+- TOTP MFA
+- recovery codes
 
-The environment template defaults AI processing to disabled.
+### Roles
+The canonical roles are: `OWNER`, `ADMIN`, `MEMBER`, `VIEWER`.
 
-The architecture supports a provider abstraction with a deterministic/offline mode and optional OpenAI-compatible external providers.
+Authorization is enforced by the server. Frontend role checks are presentation logic and are not a security boundary.
 
-The intended flow is:
+### JWT lifetime
+The current API configuration uses a 7-day JWT expiration. Documentation describing a different token lifetime should be treated as stale until it is synchronized with the implementation.
+
+### Browser credential storage
+The current frontend stores the bearer credential in browser `localStorage`. This means a successful same-origin XSS compromise could expose the stored token to JavaScript. A deployment should therefore maintain a strong XSS/CSP posture.
+
+An HttpOnly-cookie-based authentication architecture is a potential future hardening direction, but it is not the current frontend implementation.
+
+---
+
+## Realtime and Offline Operation
+
+### WebSockets
+The primary realtime authentication flow is:
 
 ```text
-User / Case Data
-      ↓
-Server-side redaction
-      ↓
-Prompt construction / isolation
-      ↓
-AI provider (optional)
-      ↓
-Structured response validation
-      ↓
-Evidence/citation validation where applicable
-      ↓
-Human review
+Authenticated client
+       ↓
+POST /api/auth/ws-ticket
+       ↓
+short-lived ticket
+       ↓
+WebSocket connection
+       ↓
+ticket consumed once
 ```
 
-AI output must be treated as assistive and non-authoritative. A model suggestion does not establish that a root cause is true, and AI output must not bypass the case verification invariant.
+Current characteristics include:
+- short-lived tickets
+- single-use consumption
+- workspace authorization
+- automatic ticket expiry
+- a 16 KB message-frame limit
+
+The ticket store is process-local and assumes the current single-instance architecture.
+
+### Offline synchronization
+The client supports an offline mutation model with:
+- local queuing
+- ordered replay
+- conflict detection
+- field-level three-way comparison
+- explicit conflict reporting
+
+This is an application-level offline workflow, not a distributed event-processing system.
+
+---
+
+## AI Assistance
+
+AI is an optional assistive component. The core application is intended to remain usable without an external LLM.
+
+### Supported provider model
+The AI layer supports:
+- deterministic/local behavior
+- OpenAI-compatible external providers
+
+External AI processing is controlled through configuration.
+
+### AI processing flow
+
+```text
+Case + Evidence
+      ↓
+Consent check
+      ↓
+PII / secret redaction
+      ↓
+Prompt isolation
+      ↓
+AI provider
+      ↓
+Structured response
+      ↓
+Evidence citation validation
+      ↓
+Non-authoritative suggestion
+```
+
+### AI output policy
+AI output is intended for suggestions, candidate hypotheses, and investigation prompts. It does not replace human verification or the domain resolution invariant.
 
 ### Redaction scope
-- ResolveOS includes pattern-based detection for supported PII/secret classes such as email addresses, credentials/tokens, phone numbers, credit-card-like values, JWTs, IPv4/IPv6 addresses, and URL credentials.
-- This is pattern-based sanitization, not a claim of perfect or universal PII detection.
-- External AI processing is optional and can be disabled completely.
+The repository implements pattern-based redaction for supported categories including:
+- email addresses
+- phone numbers
+- API-key patterns
+- JWT-like tokens
+- credit-card-like values
+- IPv4/IPv6 values
+- URL credentials
+
+This is pattern-based sanitization, not universal PII detection. The system should not be represented as guaranteeing detection or removal of every possible secret or sensitive datum.
+
+---
+
+## Security
+
+ResolveOS includes application-layer controls for several common threat classes.
+
+- **Password security**: Passwords are processed using Node.js `crypto.scrypt` with per-password salts and constant-time verification.
+- **MFA**: TOTP-based MFA includes replay protection and recovery codes.
+- **Authorization and tenant isolation**: Workspace and case operations perform server-side access checks intended to prevent cross-workspace object access.
+- **Audit trail**: The application implements a SHA-256 chained audit-event model designed to make unauthorized modification detectable. The appropriate description is tamper-evident, not tamper-proof.
+- **SSRF protection**: The security layer validates outbound URL/IP characteristics and performs DNS-aware checks for protected/private address ranges.
+- **Path traversal**: Supported path/file operations apply path normalization and traversal protections.
+- **Rate limiting**: Fastify rate limiting is enabled and configurable through environment variables.
+- **Input validation**: Zod schemas are used at application input boundaries.
+- **WebSocket security**: The realtime layer uses authenticated, short-lived tickets and checks workspace authorization before exposing workspace-scoped realtime data.
 
 ---
 
 ## Privacy and Data Handling
 
-ResolveOS is designed to avoid unnecessary product telemetry and does not require marketing analytics to operate.
+ResolveOS includes privacy-oriented functionality such as:
+- explicit consent records
+- optional AI processing
+- JSON/CSV export
+- account anonymization/deactivation
+- server-side redaction before optional external AI processing
 
-The repository includes functionality for:
-- consent records;
-- workspace data export;
-- optional AI processing controls;
-- account anonymization/deactivation flows; and
-- revocation of active sessions.
+### Self-hosted responsibility
+Self-hosting means the operator controls the surrounding infrastructure. Operators remain responsible for server and reverse-proxy logs, database access, backups, infrastructure monitoring, retention policies, network controls, organizational access policies, and third-party services.
 
-### Important distinction
-Privacy controls in the application do not automatically make a deployment compliant with a particular law or regulation.
-
-Self-hosted operators remain responsible for:
-- infrastructure;
-- backups;
-- database access;
-- server logs;
-- reverse proxies;
-- monitoring;
-- retention policies; and
-- legal/regulatory obligations applicable to their environment.
-
-ResolveOS should not be described as independently certified for GDPR, CCPA, DPDP, ISO 27001, ISO 27037, FRE 902, or any other compliance framework unless separate evidence for that claim exists.
+ResolveOS should not be described as automatically compliant with GDPR, CCPA, DPDP, ISO 27001, SOC 2, or another regulatory/assurance framework without a separate assessment.
 
 ---
 
-## Offline and Real-Time Behavior
+## Scope and Boundaries
 
-### Offline queue
-The web client can queue mutations while network access is unavailable.
+### Intended use
+ResolveOS is designed for engineering teams, security teams, SRE/operations teams, internal technical investigations, self-hosted deployments, and single-instance production workloads.
 
-### 3-way merge
-When local and remote versions diverge, ResolveOS uses field-level comparison against a base version and reports conflicts rather than silently assuming that every concurrent edit can be merged safely.
+### Explicit non-goals
+The current project is not intended to provide:
+- multi-region active/active clustering
+- distributed consensus
+- distributed WebSocket coordination
+- Kubernetes operators
+- enterprise SAML/SSO
+- hyperscale SaaS infrastructure
+- built-in fleet management for many ResolveOS instances
 
-### Real-time updates
-WebSockets are used for live case updates between collaborators. Workspace authorization is performed before a client is registered for workspace-specific realtime traffic.
+These are architectural boundaries, not claims that such capabilities are partially implemented.
 
-Because the ticket/replay state is process-local, the documented architecture assumes a single API instance.
+---
+
+## Known Engineering Limitations
+
+The following are current repository limitations that matter to operators and maintainers.
+
+- **PostgreSQL CI integration**: The current GitHub Actions workflow does not provision a live PostgreSQL service. The repository contains a PostgreSQL implementation and database-related tests, but the CI pipeline should not be interpreted as a complete real-database integration environment.
+- **Production migration workflow**: Migration functionality exists, but application startup does not automatically execute migrations and there is no canonical root-level migration command.
+- **PostgreSQL seeding**: The current seed command targets the development storage path rather than PostgreSQL.
+- **Database projection parity**: The PostgreSQL `select(selectFields)` entry point currently does not forward projection fields into the PostgreSQL select builder, so projected-select behavior is not completely equivalent between database implementations.
+- **Browser credential storage**: The current frontend stores bearer credentials in `localStorage`.
+- **Documentation synchronization**: Some repository documents are historical or may contain older verification counts/claims. Current implementation and reproducible tests should be treated as the source of technical truth when resolving such differences.
+- **Verification scope**: Repository-owned tests and readiness scripts are automated engineering checks. They are not independent penetration tests, external security audits, compliance certifications, or guarantees of zero vulnerabilities.
+- **Single-node state assumptions**: The process-local WebSocket ticket and TOTP replay stores are single-node assumptions. Multi-instance deployment requires redesigning or externalizing that coordination state.
 
 ---
 
 ## Requirements
 
-For local development:
+### Development
 - Node.js 20+
-- npm 9+
-- PostgreSQL 14+ when using persistent/PostgreSQL-backed operation
-- Docker and Docker Compose are optional
+- npm
+- Git
 
-The root `package.json` currently exposes the following primary commands:
+### Persistent deployment
+- PostgreSQL
+- valid PostgreSQL `DATABASE_URL`
 
-```bash
-npm run dev
-npm run dev:api
-npm run dev:web
-npm run build
-npm test
-npm run test:unit
-npm run test:integration
-npm run test:security
-npm run lint
-npm run typecheck
-npm run db:seed
-npm run audit:verify
-npm run readiness:check
-npm run prepublish:check
-```
+### Optional
+- Docker / Docker Compose
+- external AI provider/API
 
 ---
 
-## Local Development
+## Getting Started
 
-### 1. Clone the repository
+### 1. Clone
 ```bash
 git clone https://github.com/Meet-pandya106/resolveos.git
 cd resolveos
 ```
 
-### 2. Create local environment configuration
+### 2. Install dependencies
+Use the committed lockfile for a reproducible install:
+```bash
+npm ci
+```
+
+### 3. Configure the environment
+macOS / Linux:
 ```bash
 cp .env.example .env
 ```
+Windows PowerShell:
+```powershell
+Copy-Item .env.example .env
+```
 
-Edit `.env` before starting the API.
-
-At minimum, review:
+Configure the values required for your development environment. For PostgreSQL-backed development, relevant values include:
 ```env
 NODE_ENV=development
-PORT=4000
-HOST=0.0.0.0
-DATABASE_URL=postgres://resolveos_user:your_password@localhost:5432/resolveos
-JWT_SECRET=replace_with_a_secure_random_value
-SESSION_SECRET=replace_with_a_secure_random_value
-REFRESH_TOKEN_SECRET=replace_with_a_secure_random_value
-CORS_ORIGIN=http://localhost:5173,http://localhost:4000
-ENABLE_AI_SERVICE=false
-AI_PROVIDER=disabled
+DATABASE_URL=<postgresql-connection-string>
+JWT_SECRET=<strong-random-secret>
+SESSION_SECRET=<strong-random-secret>
 ```
 
-Use unique random secrets rather than the examples above.
+Never commit real secrets.
 
-### 3. Install dependencies
-```bash
-npm install
-```
-
-### 4. Build packages
-```bash
-npm run build
-```
-
-### 5. Start the development environment
+### 4. Start development
 ```bash
 npm run dev
 ```
+The development setup uses:
+- Fastify API: `http://localhost:4000`
+- Vite frontend: `http://localhost:5173`
 
-This starts the Fastify API and Vite web application concurrently.
-- Web application: `http://localhost:5173`
-- API: `http://localhost:4000`
-- API health: `http://localhost:4000/health`
-- API readiness: `http://localhost:4000/readiness`
+Open `http://localhost:5173` in your browser.
+
+### 5. Demo data
+```bash
+npm run db:seed
+```
+The current command is for local/demo data and does not initialize a production PostgreSQL database.
 
 ---
 
-## Database Configuration
+## Configuration
 
-### PostgreSQL for persistent deployments
-Set:
-```env
-DATABASE_URL=postgres://resolveos_user:your_password@localhost:5432/resolveos
-```
-In production, ResolveOS requires a PostgreSQL URL and rejects the in-memory/JSON fallback.
+The authoritative environment template is `.env.example`.
 
-### Docker PostgreSQL
-The Compose file provides a PostgreSQL 16 Alpine service:
-```bash
-docker compose up -d postgres
-```
-Then configure the API to use the corresponding PostgreSQL connection string.
+| Variable | Purpose |
+|---|---|
+| `NODE_ENV` | Runtime mode |
+| `PORT` | API listening port |
+| `HOST` | API bind address |
+| `DATABASE_URL` | PostgreSQL connection URL |
+| `JWT_SECRET` | JWT signing secret |
+| `SESSION_SECRET` | Session secret |
+| `REFRESH_TOKEN_SECRET` | Refresh-token secret configuration |
+| `CORS_ORIGIN` | Allowed frontend origins |
+| `SECURE_COOKIES` | Secure-cookie behavior |
+| `ENABLE_AI_SERVICE` | Enables optional external AI processing |
+| `AI_PROVIDER` | AI provider selection |
+| `AI_API_KEY` | External AI credential |
+| `AI_API_ENDPOINT` | OpenAI-compatible endpoint |
+| `UPLOAD_DIR` | Attachment storage path |
+| `MAX_FILE_SIZE_MB` | Upload size limit |
+| `RATE_LIMIT_MAX` | Rate-limit maximum |
+| `RATE_LIMIT_TIME_WINDOW_MS` | Rate-limit window |
+
+For production:
+- use high-entropy secrets
+- keep `.env` private
+- restrict `CORS_ORIGIN` to trusted origins
+- keep PostgreSQL off the public internet
+- terminate TLS at a trusted reverse proxy
+- configure backups and retention
+
+---
+
+## Database Operations
 
 ### Migrations
-The database package contains a PostgreSQL migration path and an internal migration bookkeeping table.
+Migration functionality is provided by the database package. Because application startup does not currently execute migrations automatically, a deployment must explicitly run the repository's migration mechanism before first use. A canonical root-level `db:migrate` command is not currently provided.
 
-For production deployment, treat schema migration as an explicit deployment concern and verify the database connectivity before starting application traffic.
-
----
-
-## Demo Data
-
-The repository includes a synthetic local demo seed containing a demo user, workspace, and example incident data.
-
-The documented demo login is:
-- **Email:** `demo@resolveos.local`
-- **Password:** `ResolveOS#Demo2026!`
-
-Use these credentials only for local exploration. Never use them for a public or production deployment.
-
-### Current implementation note
-The current `db:seed` script is a demo-data generator and invokes the database initializer with a local file path. That path selects the in-memory/file-backed development store rather than the PostgreSQL production driver.
-
-Therefore:
-- do not treat `npm run db:seed` as a PostgreSQL production seeding procedure;
-- do not assume it has initialized your production PostgreSQL database; and
-- if production demo seeding is ever required, create a dedicated PostgreSQL-safe seed/migration workflow and test it against a real PostgreSQL instance.
+### Seeding
+The current development/demo command is `npm run db:seed`. It targets the development store and should not be used as a PostgreSQL production initialization mechanism.
 
 ---
 
-## Production Deployment Model
+## Production Deployment
 
-ResolveOS is designed for a single-node self-hosted deployment.
-
-A typical production topology is:
+The intended deployment topology is:
 
 ```text
-                    Internet
-                       │
-                 HTTPS / WSS
-                       │
-              Reverse Proxy / CDN
-                 │             │
-                 │             └── Static React SPA
-                 │
-                 └── /api + /ws
-                       │
-                 Fastify API
-                       │
-                  PostgreSQL
+                         Internet
+                            │
+                         HTTPS/WSS
+                            │
+                  ┌─────────▼─────────┐
+                  │ Reverse Proxy     │
+                  │ CDN / Nginx /     │
+                  │ Cloud service     │
+                  └────────┬──────────┘
+                           │
+                  ┌────────┴────────┐
+                  │                 │
+                  ▼                 ▼
+           React static files    Fastify API
+                                      │
+                                      ▼
+                                  PostgreSQL
 ```
 
-A reverse proxy can terminate TLS and route:
-- `/api/*` $\to$ Fastify API
-- `/ws` $\to$ Fastify WebSocket endpoint
-- `/` $\to$ static React application
+### Docker Compose
+The repository's current Compose configuration provides `resolveos-api` and `postgres`.
 
-### Production responsibilities
-Before exposing ResolveOS to the public internet, the operator must configure and verify:
-- strong unique secrets;
-- HTTPS/WSS;
-- restrictive `CORS_ORIGIN`;
-- secure cookies;
-- PostgreSQL backups;
-- firewall/network rules;
-- log and retention policy;
-- attachment storage permissions;
-- database credentials;
-- monitoring and alerting; and
-- an operational vulnerability reporting channel.
+The React frontend should be served separately through a suitable static host, CDN, Nginx configuration, or reverse proxy unless the deployment is customized to serve it from the application container.
 
----
-
-## Docker
-
-The repository includes a multi-stage Dockerfile and a Docker Compose configuration containing:
-- `resolveos-api`
-- `postgres`
-
-The API container runs as the non-root `node` user and exposes port 4000.
-
-Example:
+Basic startup:
 ```bash
-cp .env.example .env
-# Edit .env with strong secrets and PostgreSQL settings.
 docker compose up --build -d
 ```
 
-### Important Docker scope
-The current Compose file provisions the API and PostgreSQL services. The production deployment guide separately describes hosting the React build behind a CDN, Nginx, Cloudflare Pages, Vercel, or another static web host.
+For a fresh PostgreSQL database, ensure the schema has been migrated before using application features that depend on it.
 
-Although the Dockerfile copies `apps/web/dist` into the image, the current container entrypoint starts the Fastify API and does not itself act as the production static-file server for the React application.
+### Internet-facing deployment checklist
+Before exposing ResolveOS publicly:
+- use TLS
+- set the correct `CORS_ORIGIN`
+- generate strong secrets
+- keep PostgreSQL private
+- configure backups
+- configure log retention
+- configure monitoring
+- verify WebSocket proxying
+- review upload limits
+- review rate limits
+- verify migration state
+- verify health/readiness behavior
+- run the security test suite
 
-Therefore, do not document the current Compose setup as a complete browser-facing frontend + API stack unless the frontend-serving path is explicitly implemented and verified.
+See [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) for the detailed deployment runbook.
 
 ---
 
 ## Testing and Verification
 
-The repository currently reports:
-- **98 automated tests across 19 suites**
+The repository contains unit, integration, security, and end-to-end tests (currently 98 automated tests across 19 suites).
 
-Run the suite yourself from the checkout you intend to release:
+Run the full test suite:
 ```bash
 npm test
 ```
 
-Additional commands:
+Targeted suites:
 ```bash
-# Unit tests
 npm run test:unit
-
-# Integration tests
 npm run test:integration
-
-# Security regression suites
 npm run test:security
+```
 
-# Type checking
+Static checks:
+```bash
 npm run typecheck
-
-# Lint / static analysis
 npm run lint
+```
 
-# Build all packages and applications
+Production build:
+```bash
 npm run build
+```
 
-# Verify the audit chain
-npm run audit:verify
-
-# Run the repository's production-readiness checks
+Repository readiness checks:
+```bash
 npm run readiness:check
+```
 
-# Run prepublish/security hygiene checks
+Audit-chain verification:
+```bash
+npm run audit:verify
+```
+
+Pre-publish checks:
+```bash
 npm run prepublish:check
 ```
 
-### What the current test suites cover
-The repository includes automated coverage for areas including:
-- domain and lifecycle behavior;
-- verification invariants;
-- authentication and TOTP;
-- workspace isolation / IDOR regression;
-- SSRF defenses;
-- path sanitization;
-- audit integrity behavior;
-- WebSocket security;
-- synchronization/concurrency logic;
-- backup/restore behavior; and
-- end-to-end resolution flows.
+### Interpreting results
+A passing repository test suite means the behaviors covered by those tests passed. It does not by itself prove absence of every vulnerability, universal PII detection, security against every possible attack, compliance with a regulatory framework, performance under every workload, or reliability in every infrastructure environment.
 
-### Important verification limitation
-A passing readiness script means the repository's scripted checks passed. It is not equivalent to:
-- an external penetration test;
-- an independent security audit;
-- a compliance certification;
-- a load test demonstrating arbitrary scale; or
-- a guarantee that the software is suitable for every production environment.
-
-The verification claims should always be interpreted within the documented single-node architecture and the exact test environment used.
-
----
-
-## Configuration Reference
-
-The canonical environment template is `.env.example`.
-
-Important variables include:
-
-| Variable | Purpose |
-|---|---|
-| `NODE_ENV` | Runtime environment (`development`, `test`, `production`) |
-| `PORT` | Fastify HTTP port |
-| `HOST` | Bind address |
-| `DATABASE_URL` | PostgreSQL connection string for persistent operation |
-| `JWT_SECRET` | JWT signing secret; production requires a strong secret |
-| `SESSION_SECRET` | Cookie/session secret; production requires a strong secret |
-| `REFRESH_TOKEN_SECRET` | Refresh-token secret |
-| `CORS_ORIGIN` | Allowed browser origins |
-| `SECURE_COOKIES` | Cookie security mode |
-| `ENABLE_AI_SERVICE` | Enables optional external/dedicated AI integration |
-| `AI_PROVIDER` | AI provider selection |
-| `AI_API_KEY` | External AI credential when enabled |
-| `AI_API_ENDPOINT` | OpenAI-compatible API endpoint when configured |
-| `UPLOAD_DIR` | Attachment storage directory |
-| `MAX_FILE_SIZE_MB` | Upload size limit |
-| `RATE_LIMIT_MAX` | Rate-limit request count |
-| `RATE_LIMIT_TIME_WINDOW_MS` | Rate-limit interval |
-
-Never commit production credentials to Git.
-
-### Keyboard Shortcuts
-
-| Shortcut | Action |
-|---|---|
-| **Ctrl + K** | Open command palette / unified search |
-| **Esc** | Close active modal, drawer, or palette |
-| **M** | Toggle theme |
-
----
-
-## Architectural Boundaries
-
-These are intentional project boundaries, not missing enterprise features.
-
-- **Single-node deployment**: The documented architecture assumes a single API instance with one PostgreSQL backend.
-- **No distributed coordination layer**: The current project does not require or provide a distributed Redis/PubSub/consensus layer for WebSocket tickets or TOTP replay state.
-- **No hyperscale target**: ResolveOS is not positioned as infrastructure for millions of users, global multi-region workloads, or arbitrary horizontal scaling.
-- **No enterprise SAML/SSO**: SAML/SSO integration is not part of the current implementation.
-- **Optional AI**: The application can operate without external AI services.
-- **Specialized integrations are not the core product**: ResolveOS is not intended to replace every upstream observability, incident-response, SIEM, APM, or ticketing platform.
-
----
-
-## Known Limitations and Release Notes
-
-This section is intentionally explicit so that users do not confuse a production-oriented implementation with a universally production-ready platform.
-
-### Current limitations to understand before deployment
-- **PostgreSQL Integration Testing**: PostgreSQL integration should be exercised against a real PostgreSQL service in CI before using "real database verification" as a release claim. The current repository includes a PostgreSQL driver, but some database tests use mocked pool/client behavior.
-- **Frontend Serving**: The frontend is not served by the current API container. The current deployment documentation assumes a separate static-hosting or reverse-proxy path for the React build.
-- **Demo Seeding Scope**: The demo seed is development-oriented. It currently targets the memory/file-backed development store rather than a PostgreSQL production database.
-- **Pattern-Based Redaction**: PII/secret redaction is pattern based. It should not be described as universal detection or a 100% guarantee.
-- **Account Deletion Behavior**: Account deletion currently anonymizes/deactivates the user record and revokes sessions. Documentation should distinguish this from a claim of asynchronous physical database erasure unless such a deletion workflow is actually implemented.
-- **Scope of Readiness Scripts**: The readiness script is a repository verification tool, not an independent audit. Passing its gates does not establish compliance certification or universal security.
-- **Single-Node State Assumptions**: The process-local WebSocket ticket and TOTP replay stores are single-node assumptions. Multi-instance deployment requires redesigning or externalizing that coordination state.
-- **Test Count Consistency**: The test count shown in this README should be regenerated from the exact checkout being released. Do not manually preserve stale test numbers after modifying the suite.
-
-These limitations are part of the project's current engineering scope and should be removed from this section only when the underlying implementation and verification have actually changed.
+Performance, RPO, and RTO numbers documented elsewhere should be treated as operational objectives unless supported by reproducible measurements and recovery exercises.
 
 ---
 
 ## Documentation
 
-The repository contains supporting technical documentation. Start with:
-- [Architecture (`docs/ARCHITECTURE.md`)](./docs/ARCHITECTURE.md)
-- [Claims & Verification Matrix (`docs/CLAIMS.md`)](./docs/CLAIMS.md)
-- [Security Architecture (`docs/SECURITY.md`)](./docs/SECURITY.md)
-- [Threat Model (`docs/THREAT_MODEL.md`)](./docs/THREAT_MODEL.md)
-- [AI Security (`docs/AI_SECURITY.md`)](./docs/AI_SECURITY.md)
-- [Database Guide (`docs/DATABASE.md`)](./docs/DATABASE.md)
-- [Backup & Restore (`docs/BACKUP_RESTORE.md`)](./docs/BACKUP_RESTORE.md)
-- [Disaster Recovery (`docs/DISASTER_RECOVERY.md`)](./docs/DISASTER_RECOVERY.md)
-- [Deployment Guide (`docs/DEPLOYMENT.md`)](./docs/DEPLOYMENT.md)
-- [Operations (`docs/OPERATIONS.md`)](./docs/OPERATIONS.md)
-- [Privacy (`docs/PRIVACY.md`)](./docs/PRIVACY.md)
-- [Testing (`docs/TESTING.md`)](./docs/TESTING.md)
-- [Change Ledger (`docs/CHANGE_LEDGER.md`)](./docs/CHANGE_LEDGER.md)
-- [Production Review (`docs/FINAL_PRODUCTION_REVIEW.md`)](./docs/FINAL_PRODUCTION_REVIEW.md)
+The `docs/` directory contains deeper technical documentation.
 
-### Documentation rule
-The repository should follow one simple rule:
-> **If the code, tests, and documentation disagree, the documentation must be corrected or the implementation must be corrected before release.**
+| Document | Purpose |
+|---|---|
+| [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | System and package architecture |
+| [`docs/PRODUCTION_AUDIT.md`](./docs/PRODUCTION_AUDIT.md) | Historical baseline audit |
+| [`docs/CLAIMS.md`](./docs/CLAIMS.md) | Claims and supporting evidence |
+| [`docs/CHANGE_LEDGER.md`](./docs/CHANGE_LEDGER.md) | Remediation and change history |
+| [`docs/DATABASE.md`](./docs/DATABASE.md) | Database design |
+| [`docs/BACKUP_RESTORE.md`](./docs/BACKUP_RESTORE.md) | Backup and restore procedures |
+| [`docs/THREAT_MODEL.md`](./docs/THREAT_MODEL.md) | Threat model and attack surface |
+| [`docs/SECURITY.md`](./docs/SECURITY.md) | Security controls and reporting |
+| [`docs/AI_SECURITY.md`](./docs/AI_SECURITY.md) | AI-specific security considerations |
+| [`docs/DISASTER_RECOVERY.md`](./docs/DISASTER_RECOVERY.md) | Disaster recovery guidance |
+| [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) | Deployment runbook |
+| [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) | Operational guidance |
+| [`docs/PRIVACY.md`](./docs/PRIVACY.md) | Privacy and data handling |
+| [`docs/TESTING.md`](./docs/TESTING.md) | Testing strategy |
 
-Historical audits should remain clearly marked as historical and should not be mistaken for the current system state.
+Historical audit/review documents should be interpreted as historical records when they describe an older repository state.
 
 ---
 
 ## Contributing
 
-Contributions should preserve the project's separation of concerns and security boundaries.
+Contributions should preserve the project's core principles:
+- server-side authorization
+- explicit domain invariants
+- evidence-backed investigation
+- testable business logic
+- privacy-aware AI boundaries
+- parameterized database access
+- clear separation between development and production behavior
+- technically honest documentation
 
 Before opening a pull request:
 ```bash
 npm ci
 npm run typecheck
 npm test
-npm run build
 npm run lint
-npm run prepublish:check
+npm run build
+npm run readiness:check
 ```
 
-For changes affecting a documented security or lifecycle invariant, add or update a regression test and update the relevant documentation.
+Do not delete or weaken tests to obtain a green build, introduce unsupported security claims, call mocked functionality fully implemented, describe project-owned tests as independent audits, or broaden the documented product scope without changing the architecture accordingly.
 
-- Do not silently weaken tests to make a build pass.
-- Do not add a public claim for a feature that is not actually implemented and tested.
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for repository-specific contribution guidance.
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for repository-specific contribution guidance.
 
 ---
 
 ## Security Reporting
 
-Please do not disclose suspected vulnerabilities in a public issue, pull request, or discussion.
+Do not disclose suspected vulnerabilities through public GitHub issues. Use a real monitored security contact or GitHub's private vulnerability-reporting mechanism.
 
-The repository currently documents a security-reporting email address in `SECURITY.md`. Before publishing or relying on this process, the maintainers should ensure that the address is a real, monitored channel or replace it with a supported private GitHub security-reporting mechanism.
+*Important:* the historical `security@resolveos.local` address is a placeholder-style local domain and should not be treated as a functioning public vulnerability-reporting endpoint.
 
-See [SECURITY.md](./SECURITY.md) for the project's current security policy.
+See [`SECURITY.md`](./SECURITY.md) for the repository's security policy.
 
 ---
 
 ## License
 
-ResolveOS is distributed under the [MIT License](./LICENSE).
+ResolveOS is released under the [MIT License](./LICENSE).
 
 Copyright © 2026 ResolveOS Contributors.
 
 ---
 
-## Project Positioning
+## Project Status
 
-ResolveOS should be evaluated on what it actually provides:
-- a structured technical investigation workflow;
-- evidence and reasoning capture;
-- domain-enforced resolution states;
-- workspace-aware collaboration;
-- optional AI assistance;
-- offline-capable client behavior;
-- security-focused application controls; and
-- a self-hosted PostgreSQL-backed deployment model.
+ResolveOS is a production-oriented, self-hosted, single-node application.
 
-It should not be described as a hyperscale distributed platform, independently audited security product, or universal compliance solution unless separate technical evidence exists for those claims.
+The project's architectural objective is intentionally focused:
 
-The goal of this README is technical accuracy, not marketing inflation.
+```text
+React frontend
+      +
+Fastify API
+      +
+PostgreSQL
+      +
+optional AI
+      +
+single-instance realtime/auth state
+```
+
+The project should be evaluated against its documented architecture and verified behavior, not against distributed enterprise platforms that are outside its intended scope.

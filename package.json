@@ -2,7 +2,7 @@
   "name": "resolveos",
   "version": "1.0.0",
   "private": true,
-  "description": "ResolveOS — A Privacy-First Problem Resolution Operating System",
+  "description": "evidence-driven problem solving for engineering teams — incident management, root-cause analysis, verification, privacy-first workflows, and open-source infrastructure",
   "type": "module",
   "workspaces": [
     "packages/*",
