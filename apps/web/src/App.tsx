@@ -15,6 +15,7 @@ const PrivacyCenterView = lazy(() => import('./features/privacy/PrivacyCenterVie
 const SecurityCenterView = lazy(() => import('./features/security/SecurityCenterView.js').then(m => ({ default: m.SecurityCenterView })));
 const LoginView = lazy(() => import('./features/auth/LoginView.js').then(m => ({ default: m.LoginView })));
 const RegisterView = lazy(() => import('./features/auth/RegisterView.js').then(m => ({ default: m.RegisterView })));
+const LandingView = lazy(() => import('./features/landing/LandingView.js').then(m => ({ default: m.LandingView })));
 
 const LoadingFallback: React.FC = () => (
   <div className="flex items-center justify-center p-12 text-muted-foreground font-mono text-xs gap-2">
@@ -65,6 +66,9 @@ export const App: React.FC = () => {
 
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
+          <Route path="/landing" element={<LandingView />} />
+          <Route path="/showcase" element={<LandingView />} />
+
           <Route
             path="/login"
             element={!isAuthenticated ? <LoginView /> : <Navigate to="/" replace />}
@@ -74,10 +78,10 @@ export const App: React.FC = () => {
             element={!isAuthenticated ? <RegisterView /> : <Navigate to="/" replace />}
           />
 
-          {/* Protected Application Routes */}
+          {/* Root Route: If not logged in, show beautiful LandingView, otherwise AppLayout */}
           <Route
             path="/"
-            element={isAuthenticated ? <AppLayout /> : <Navigate to="/login" replace />}
+            element={isAuthenticated ? <AppLayout /> : <LandingView />}
           >
             <Route index element={<DashboardView />} />
             <Route path="cases" element={<CaseListView />} />

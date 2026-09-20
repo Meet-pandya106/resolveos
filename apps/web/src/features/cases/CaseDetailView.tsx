@@ -20,6 +20,7 @@ import {
   CaseActivity
 } from '@resolveos/shared';
 import { ProblemScorer } from '@resolveos/domain';
+import confetti from 'canvas-confetti';
 import {
   CheckCircle2,
   Clock,
@@ -138,6 +139,13 @@ export const CaseDetailView: React.FC = () => {
         status: nextStatus,
         expectedVersion: caseData.version
       });
+      if (nextStatus === 'RESOLVED') {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      }
       addToast({ type: 'success', message: `Case status changed to ${nextStatus}` });
       loadCaseFull();
     } catch (err: any) {
@@ -343,6 +351,60 @@ export const CaseDetailView: React.FC = () => {
               </select>
             </div>
           </div>
+        </div>
+
+        {/* 12-Stage Scientific Resolution Stepper */}
+        <div className="p-4 rounded-xl bg-muted/20 border border-border/70 space-y-2">
+          <div className="flex items-center justify-between text-xs font-mono">
+            <span className="flex items-center gap-1.5 text-foreground font-bold">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              12-Stage Scientific Problem Resolution Stepper
+            </span>
+            <span className="text-muted-foreground text-[11px]">
+              Formulation Quality: <strong className="text-primary">{problemScore.score}%</strong>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-1.5 pt-1">
+            {[
+              { num: 1, name: 'Formulate', done: problemScore.score >= 50 },
+              { num: 2, name: 'Symptom', done: !!(problemForm.expectedBehavior && problemForm.observedBehavior) },
+              { num: 3, name: 'Evidence', done: evidenceList.length > 0 },
+              { num: 4, name: 'Inquiry', done: questionsList.length > 0 },
+              { num: 5, name: 'Hypotheses', done: hypothesesList.length > 0 },
+              { num: 6, name: 'Root Cause', done: rootCausesList.length > 0 },
+              { num: 7, name: 'Solutions', done: solutionsList.length > 0 },
+              { num: 8, name: 'Decisions', done: decisionsList.length > 0 },
+              { num: 9, name: 'Actions', done: actionsList.length > 0 },
+              { num: 10, name: 'Verify', done: verificationsList.length > 0 },
+              { num: 11, name: 'Resolved', done: caseData.status === 'RESOLVED' },
+              { num: 12, name: 'Retro', done: !!retrospective }
+            ].map((st) => (
+              <div
+                key={st.num}
+                className={`p-1.5 rounded-lg text-center font-mono text-[10px] transition-all border ${
+                  st.done
+                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 font-bold'
+                    : 'bg-card/40 border-border/50 text-muted-foreground'
+                }`}
+                title={`Stage ${st.num}: ${st.name} (${st.done ? 'Satisfied' : 'Pending'})`}
+              >
+                <div className="text-[9px] opacity-70">#{st.num}</div>
+                <div className="truncate font-semibold">{st.name}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Invariant Rule Banner */}
+        <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between text-xs font-mono">
+          <div className="flex items-center gap-2 text-primary">
+            <ShieldCheck className="w-4 h-4 shrink-0" />
+            <span>Invariant Guard: State transition to RESOLVED is physically blocked until a PASSED verification test is logged.</span>
+          </div>
+          <span className="text-[10px] px-2 py-0.5 rounded bg-primary/10 text-primary font-bold hidden sm:inline-block">
+            OWASP ASVS 5.0
+          </span>
         </div>
 
         {/* Workflow Navigation Tabs */}

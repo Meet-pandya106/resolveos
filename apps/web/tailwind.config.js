@@ -46,6 +46,28 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace']
+      },
+      boxShadow: {
+        'glow-primary': '0 0 25px -5px hsl(var(--primary) / 0.35)',
+        'glow-cyan': '0 0 25px -5px rgba(56, 189, 248, 0.4)',
+        'glow-emerald': '0 0 25px -5px rgba(16, 185, 129, 0.4)',
+        'glow-rose': '0 0 25px -5px rgba(244, 63, 94, 0.4)',
+        'glow-amber': '0 0 25px -5px rgba(245, 158, 11, 0.4)'
+      },
+      animation: {
+        'pulse-subtle': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'radar': 'radar 2s linear infinite',
+        'float': 'float 6s ease-in-out infinite'
+      },
+      keyframes: {
+        radar: {
+          '0%': { transform: 'scale(0.8)', opacity: '0.8' },
+          '100%': { transform: 'scale(2.2)', opacity: '0' }
+        },
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-6px)' }
+        }
       }
     }
   },
