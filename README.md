@@ -67,19 +67,19 @@ ResolveOS is engineered for organizations and teams that cannot afford ambiguous
 
 ## 🖼️ Visual Guide & System Walkthrough
 
-| Public Showcase & Landing Page | 12-Stage Scientific Lifecycle Explorer |
+| Incident Operations Center & Telemetry | WebGL 2.0 3D Relational Problem Mesh |
 | :---: | :---: |
-| ![Public Landing Page](docs/images/01-landing-hero.png) | ![12-Stage Lifecycle Explorer](docs/images/02-12-stage-lifecycle.png) |
+| ![Operations Dashboard](docs/images/04-operations-dashboard.png) | ![3D Case Network](docs/images/09-3d-case-mesh.png) |
 
-| Live PII & Secrets Redactor Sandbox | Incident Operations Center |
+| Workspace Configuration & 12-Stage Governance | Privacy & Data Governance Center |
 | :---: | :---: |
-| ![PII Redactor Sandbox](docs/images/03-pii-redactor-sandbox.png) | ![Operations Dashboard](docs/images/04-operations-dashboard.png) |
+| ![Workspace Settings](docs/images/10-workspace-settings.png) | ![Privacy Center](docs/images/12-privacy-center.png) |
 
-| 12-Stage Milestone Stepper & Completeness | 3D Relational Problem Mesh (Three.js) |
-| :---: | :---: |
-| ![12-Stage Case Detail](docs/images/05-12-stage-case-detail.png) | ![3D Case Network](docs/images/09-3d-case-mesh.png) |
+| Problem Resolution Case Registry & Stream |
+| :---: |
+| ![Case Registry Stream](docs/images/05-case-list.png) |
 
-> 💡 *To customize screenshots, drop your `.png` files into [`docs/images/`](./docs/images/) using the naming conventions in [`docs/images/README.md`](./docs/images/README.md).*
+> 💡 *All screenshots reflect the live ResolveOS UI running locally at `http://localhost:5173` with dark cyber-mesh aesthetics and zero-telemetry enforcement.*
 
 ---
 
