@@ -26,6 +26,10 @@ import { authenticate } from "../middleware/auth.js";
 import { AuditService } from "../services/AuditService.js";
 import { RealtimeService } from "../services/RealtimeService.js";
 
+function hashRecoveryCode(code: string): string {
+	return crypto.createHash("sha256").update(code.trim().toUpperCase()).digest("hex");
+}
+
 export const authRoutes: FastifyPluginAsync = async (
 	server: FastifyInstance,
 ) => {
@@ -209,7 +213,12 @@ export const authRoutes: FastifyPluginAsync = async (
 				}
 
 				const normalizedInput = body.recoveryCode.trim().toUpperCase();
-				const codeIndex = validCodes.indexOf(normalizedInput);
+				const hashedInput = hashRecoveryCode(normalizedInput);
+				// Match cryptographically hashed code or raw fallback
+				let codeIndex = validCodes.indexOf(hashedInput);
+				if (codeIndex === -1) {
+					codeIndex = validCodes.indexOf(normalizedInput);
+				}
 				if (codeIndex === -1) {
 					AuditService.log("FAILED_LOGIN", {
 						req: request,
@@ -488,11 +497,12 @@ export const authRoutes: FastifyPluginAsync = async (
 			}
 
 			const recoveryCodes = TOTPService.generateRecoveryCodes(8);
+			const hashedRecoveryCodes = recoveryCodes.map(hashRecoveryCode);
 			await db.update(users)
 				.set({
 					twoFactorEnabled: true,
 					twoFactorSecret: body.secret,
-					recoveryCodes,
+					recoveryCodes: hashedRecoveryCodes,
 					updatedAt: new Date().toISOString(),
 				})
 				.where(eq(users.id, request.user!.id))

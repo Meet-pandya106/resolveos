@@ -300,4 +300,27 @@ describe("Integration: Complete Problem Resolution Lifecycle", () => {
 		});
 		expect(testReq.statusCode).toBe(401);
 	});
+
+	it("15. Observability: /health endpoint reports dynamic version and liveness status", async () => {
+		const res = await server.inject({
+			method: "GET",
+			url: "/health",
+		});
+		expect(res.statusCode).toBe(200);
+		const body = JSON.parse(res.payload);
+		expect(body.status).toBe("ok");
+		expect(body.version).toBeDefined();
+		expect(body.timestamp).toBeDefined();
+	});
+
+	it("16. Observability: /readiness endpoint verifies database connectivity", async () => {
+		const res = await server.inject({
+			method: "GET",
+			url: "/readiness",
+		});
+		expect(res.statusCode).toBe(200);
+		const body = JSON.parse(res.payload);
+		expect(body.status).toBe("ready");
+		expect(body.database).toBe("connected");
+	});
 });

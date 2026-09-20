@@ -105,12 +105,21 @@ ResolveOS has achieved full **Production-Ready, Self-Hostable, Hardened Open-Sou
 ## 5. Authorization and Tenant Isolation Audit
 
 ### Access Control Enforcement Points
-- Workspace-scoped authorization middleware (`requireWorkspaceAccess`) validates user membership and required role (`VIEWER`, `CONTRIBUTOR`, `LEAD`, `ADMIN`, `OWNER`) before handler execution.
-- Role-based permissions matrix strictly enforced:
-  - `VIEWER`: Read-only access to cases, evidence, decisions.
-  - `CONTRIBUTOR`: Create and update hypotheses, evidence, comments.
-  - `LEAD` / `ADMIN`: Authorize solutions, decisions, state transitions.
-  - `OWNER`: Workspace settings, member management, verification overrides, workspace deletion.
+- Workspace-scoped authorization middleware (`requireWorkspaceAccess`) validates user membership and required role (`VIEWER`, `MEMBER`, `ADMIN`, `OWNER`) before handler execution.
+- Canonical Role-Based Permissions Matrix:
+
+| Action / Capability | VIEWER | MEMBER | ADMIN | OWNER |
+| :--- | :---: | :---: | :---: | :---: |
+| **Read Cases, Evidence & Decisions** | ✅ | ✅ | ✅ | ✅ |
+| **Create Cases & Add Evidence** | ❌ | ✅ | ✅ | ✅ |
+| **Manage Hypotheses & Solutions** | ❌ | ✅ | ✅ | ✅ |
+| **Schedule & Complete Actions** | ❌ | ✅ | ✅ | ✅ |
+| **Offline Sync Mutations** | ❌ | ✅ | ✅ | ✅ |
+| **Invite & Add Members** | ❌ | ❌ | ✅ | ✅ |
+| **Create & Revoke API Keys** | ❌ | ❌ | ✅ | ✅ |
+| **Export Workspace Data (JSON/CSV)** | ❌ | ❌ | ✅ | ✅ |
+| **Verification Gate Override** | ❌ | ❌ | ❌ | ✅ |
+| **Workspace Settings & Deletion** | ❌ | ❌ | ❌ | ✅ |
 
 ### IDOR / BOLA Defenses
 - Sub-resource queries (evidence, hypotheses, root causes, decisions, actions) are scoped by `workspace_id` in SQL queries:
