@@ -35,7 +35,7 @@ export const searchRoutes: FastifyPluginAsync = async (
 			const searchTerm = `%${parsedQuery.query || ""}%`;
 
 			// 1. Search Cases
-			const matchingCases = db
+			const matchingCases = await db
 				.select({
 					id: cases.id,
 					title: cases.title,
@@ -56,7 +56,7 @@ export const searchRoutes: FastifyPluginAsync = async (
 				.all();
 
 			// 2. Search Evidence
-			const matchingEvidence = db
+			const matchingEvidence = await db
 				.select({
 					id: caseEvidence.id,
 					caseId: caseEvidence.caseId,
@@ -78,7 +78,7 @@ export const searchRoutes: FastifyPluginAsync = async (
 				.all();
 
 			// 3. Search Actions
-			const matchingActions = db
+			const matchingActions = await db
 				.select({
 					id: caseActions.id,
 					caseId: caseActions.caseId,

@@ -24,62 +24,62 @@ export class ExportImportService {
 	/**
 	 * Generates a sanitized JSON export of a complete Case with all linked entities.
 	 */
-	static exportCaseJson(caseId: string): any {
+	static async exportCaseJson(caseId: string): Promise<any> {
 		const db = getDatabase();
 
-		const caseRecord = db
+		const caseRecord = await db
 			.select()
 			.from(cases)
 			.where(eq(cases.id, caseId))
 			.get();
 		if (!caseRecord) throw new Error("Case not found");
 
-		const evidenceList = db
+		const evidenceList = await db
 			.select()
 			.from(caseEvidence)
 			.where(eq(caseEvidence.caseId, caseId))
 			.all();
-		const questionsList = db
+		const questionsList = await db
 			.select()
 			.from(caseQuestions)
 			.where(eq(caseQuestions.caseId, caseId))
 			.all();
-		const hypothesesList = db
+		const hypothesesList = await db
 			.select()
 			.from(hypotheses)
 			.where(eq(hypotheses.caseId, caseId))
 			.all();
-		const rootCausesList = db
+		const rootCausesList = await db
 			.select()
 			.from(rootCauses)
 			.where(eq(rootCauses.caseId, caseId))
 			.all();
-		const solutionsList = db
+		const solutionsList = await db
 			.select()
 			.from(solutions)
 			.where(eq(solutions.caseId, caseId))
 			.all();
-		const decisionsList = db
+		const decisionsList = await db
 			.select()
 			.from(decisions)
 			.where(eq(decisions.caseId, caseId))
 			.all();
-		const actionsList = db
+		const actionsList = await db
 			.select()
 			.from(caseActions)
 			.where(eq(caseActions.caseId, caseId))
 			.all();
-		const verificationsList = db
+		const verificationsList = await db
 			.select()
 			.from(verifications)
 			.where(eq(verifications.caseId, caseId))
 			.all();
-		const retroList = db
+		const retroList = await db
 			.select()
 			.from(retrospectives)
 			.where(eq(retrospectives.caseId, caseId))
 			.all();
-		const activitiesList = db
+		const activitiesList = await db
 			.select()
 			.from(caseActivities)
 			.where(eq(caseActivities.caseId, caseId))
@@ -105,9 +105,10 @@ export class ExportImportService {
 	/**
 	 * Generates a CSV string representation of all cases in a workspace.
 	 */
-	static exportCasesCsv(workspaceId: string): string {
+	static async exportCasesCsv(workspaceId: string): Promise<string> {
 		const db = getDatabase();
-		const allCases = db
+
+		const allCases = await db
 			.select()
 			.from(cases)
 			.where(eq(cases.workspaceId, workspaceId))

@@ -142,11 +142,47 @@ export function asc(field: any) {
 	};
 }
 
+export interface SelectQueryBuilder {
+	from(table: TableRef): SelectQueryBuilder;
+	innerJoin(table: TableRef, cond: any): SelectQueryBuilder;
+	leftJoin(table: TableRef, cond: any): SelectQueryBuilder;
+	where(cond?: SQLCondition): SelectQueryBuilder;
+	orderBy(order: any): SelectQueryBuilder;
+	limit(n: number): SelectQueryBuilder;
+	offset?(n: number): SelectQueryBuilder;
+	all(): Promise<any[]>;
+	get(): Promise<any | undefined>;
+	count?(): Promise<number>;
+}
+
+export interface InsertQueryBuilder {
+	values(data: any): {
+		onConflictDoNothing?(): {
+			run(): Promise<{ changes: number; row?: any }>;
+		};
+		run(): Promise<{ changes: number; row?: any; rows?: any[] }>;
+	};
+}
+
+export interface UpdateQueryBuilder {
+	set(updates: any): {
+		where(cond: SQLCondition): {
+			run(): Promise<{ changes: number }>;
+		};
+	};
+}
+
+export interface DeleteQueryBuilder {
+	where(cond: SQLCondition): {
+		run(): Promise<{ changes: number }>;
+	};
+}
+
 export interface DatabaseDriver {
-	select(selectFields?: any): any;
-	insert(table: TableRef): any;
-	update(table: TableRef): any;
-	delete(table: TableRef): any;
+	select(selectFields?: any): SelectQueryBuilder;
+	insert(table: TableRef): InsertQueryBuilder;
+	update(table: TableRef): UpdateQueryBuilder;
+	delete(table: TableRef): DeleteQueryBuilder;
 	transaction<T>(fn: (tx: DatabaseDriver) => Promise<T>): Promise<T>;
 	close(): Promise<void>;
 	isPostgres(): boolean;
@@ -277,7 +313,7 @@ export class MemoryStore implements DatabaseDriver {
 				limitCount = n;
 				return builder;
 			},
-			all(): any[] {
+			_execAll(): any[] {
 				const rows = store.getTable(currentTable);
 				let result = rows.slice();
 
@@ -315,9 +351,12 @@ export class MemoryStore implements DatabaseDriver {
 
 				return result;
 			},
-			get(): any | undefined {
-				const res = builder.all();
-				return res.length > 0 ? res[0] : undefined;
+			async all(): Promise<any[]> {
+				return Promise.resolve(builder._execAll());
+			},
+			async get(): Promise<any | undefined> {
+				const res = builder._execAll();
+				return Promise.resolve(res.length > 0 ? res[0] : undefined);
 			},
 		};
 
@@ -331,7 +370,7 @@ export class MemoryStore implements DatabaseDriver {
 				return {
 					onConflictDoNothing() {
 						return {
-							run() {
+							async run(): Promise<{ changes: number; row?: any }> {
 								const rows = store.getTable(table.tableName);
 								const isExisting = rows.some(
 									(r) =>
@@ -341,15 +380,16 @@ export class MemoryStore implements DatabaseDriver {
 									rows.push({ ...data });
 									store.saveToFile();
 								}
-								return { changes: isExisting ? 0 : 1 };
+								return { changes: isExisting ? 0 : 1, row: isExisting ? undefined : { ...data } };
 							},
 						};
 					},
-					run() {
+					async run(): Promise<{ changes: number; row?: any; rows?: any[] }> {
 						const rows = store.getTable(table.tableName);
-						rows.push({ ...data });
+						const inserted = { ...data };
+						rows.push(inserted);
 						store.saveToFile();
-						return { changes: 1 };
+						return { changes: 1, row: inserted, rows: [inserted] };
 					},
 				};
 			},
@@ -363,7 +403,7 @@ export class MemoryStore implements DatabaseDriver {
 				return {
 					where(cond: SQLCondition) {
 						return {
-							run() {
+							async run(): Promise<{ changes: number }> {
 								const rows = store.getTable(table.tableName);
 								let changes = 0;
 								rows.forEach((row, idx) => {
@@ -387,7 +427,7 @@ export class MemoryStore implements DatabaseDriver {
 		return {
 			where(cond: SQLCondition) {
 				return {
-					run() {
+					async run(): Promise<{ changes: number }> {
 						const rows = store.getTable(table.tableName);
 						const initial = rows.length;
 						const filtered = rows.filter((r) => !cond(r));

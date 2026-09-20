@@ -29,7 +29,7 @@ export const aiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
 			const db = getDatabase();
 
 			// 1. Verify Workspace AI Permission
-			const ws = db
+			const ws = await db
 				.select()
 				.from(workspaces)
 				.where(eq(workspaces.id, workspaceId))
@@ -44,7 +44,7 @@ export const aiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
 			}
 
 			// 2. Verify User Consent
-			const consent = db
+			const consent = await db
 				.select()
 				.from(consentRecords)
 				.where(
@@ -66,7 +66,7 @@ export const aiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
 			}
 
 			// 3. Load Case Data scoped to workspace
-			const caseRecord = db
+			const caseRecord = await db
 				.select()
 				.from(cases)
 				.where(
@@ -88,7 +88,7 @@ export const aiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
 					});
 			}
 
-			const evidenceList = db
+			const evidenceList = await db
 				.select()
 				.from(caseEvidence)
 				.where(eq(caseEvidence.caseId, caseId))

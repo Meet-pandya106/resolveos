@@ -54,7 +54,7 @@ export const syncRoutes: FastifyPluginAsync = async (
 				}
 
 				// 1. Idempotency Check
-				const existingSync = db
+				const existingSync = await db
 					.select()
 					.from(syncEvents)
 					.where(eq(syncEvents.idempotencyKey, item.idempotencyKey))
@@ -70,7 +70,7 @@ export const syncRoutes: FastifyPluginAsync = async (
 
 				// 2. Process CASE Entity
 				if (item.entityType === "CASE") {
-					const remote = db
+					const remote = await db
 						.select()
 						.from(cases)
 						.where(
@@ -108,7 +108,7 @@ export const syncRoutes: FastifyPluginAsync = async (
 						}
 
 						// Apply clean merge
-						db.update(cases)
+						await db.update(cases)
 							.set({
 								...merge.merged,
 								updatedAt: new Date().toISOString(),
@@ -116,7 +116,7 @@ export const syncRoutes: FastifyPluginAsync = async (
 							.where(eq(cases.id, item.entityId))
 							.run();
 					} else if (item.action === "CREATE" && !remote) {
-						db.insert(cases)
+						await db.insert(cases)
 							.values({
 								...item.localSnapshot,
 								id: item.entityId,
@@ -129,7 +129,7 @@ export const syncRoutes: FastifyPluginAsync = async (
 				}
 
 				// 3. Record Sync Event for Audit & Idempotency
-				db.insert(syncEvents)
+				await db.insert(syncEvents)
 					.values({
 						id: crypto.randomUUID(),
 						idempotencyKey: item.idempotencyKey,

@@ -57,14 +57,14 @@ export const caseRoutes: FastifyPluginAsync = async (
 	server.addHook("preHandler", authenticate);
 
 	// Helper to record case activity
-	function recordActivity(
+	async function recordActivity(
 		caseId: string,
 		userId: string,
 		eventType: string,
 		details: Record<string, any>,
 	) {
 		const db = getDatabase();
-		db.insert(caseActivities)
+		await db.insert(caseActivities)
 			.values({
 				id: crypto.randomUUID(),
 				caseId,
@@ -77,9 +77,9 @@ export const caseRoutes: FastifyPluginAsync = async (
 	}
 
 	// Security Helper: Strictly verifies that the case exists, belongs to the specified workspace, and is not soft-deleted
-	function getAuthorizedCase(workspaceId: string, caseId: string) {
+	async function getAuthorizedCase(workspaceId: string, caseId: string) {
 		const db = getDatabase();
-		return db
+		return await db
 			.select()
 			.from(cases)
 			.where(
@@ -100,7 +100,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			const { workspaceId } = request.params as { workspaceId: string };
 			const db = getDatabase();
 
-			const caseList = db
+			const caseList = await db
 				.select({
 					id: cases.id,
 					workspaceId: cases.workspaceId,
@@ -157,7 +157,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				} as any;
 			}
 
-			db.insert(cases)
+			await db.insert(cases)
 				.values({
 					id: caseId,
 					workspaceId,
@@ -175,7 +175,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				})
 				.run();
 
-			recordActivity(caseId, request.user!.id, "CASE_CREATED", {
+			await recordActivity(caseId, request.user!.id, "CASE_CREATED", {
 				title: body.title,
 				severity: body.severity,
 			});
@@ -199,7 +199,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			const caseItem = getAuthorizedCase(workspaceId, caseId);
+			const caseItem = await getAuthorizedCase(workspaceId, caseId);
 
 			if (!caseItem) {
 				return reply
@@ -232,7 +232,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			const existing = getAuthorizedCase(workspaceId, caseId);
+			const existing = await getAuthorizedCase(workspaceId, caseId);
 			if (!existing) {
 				return reply
 					.status(404)
@@ -260,7 +260,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 
 			// State transition validation & verification gate check
 			if (body.status && body.status !== existing.status) {
-				const verificationsList = db
+				const verificationsList = await db
 					.select()
 					.from(verifications)
 					.where(eq(verifications.caseId, caseId))
@@ -295,7 +295,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				}
 
 				if (!hasPassed && hasExplicitOverride) {
-					recordActivity(caseId, request.user!.id, "VERIFICATION_OVERRIDDEN", {
+					await recordActivity(caseId, request.user!.id, "VERIFICATION_OVERRIDDEN", {
 						reason: body.overrideReason,
 					});
 				}
@@ -316,7 +316,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 
 			// Execute atomic update within transaction
 			await db.transaction(async (tx) => {
-				tx.update(cases)
+				await tx.update(cases)
 					.set({
 						title: body.title !== undefined ? body.title : existing.title,
 						description:
@@ -341,7 +341,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 					.run();
 
 				if (body.status && body.status !== existing.status) {
-					tx.insert(caseActivities)
+					await tx.insert(caseActivities)
 						.values({
 							id: crypto.randomUUID(),
 							caseId,
@@ -374,7 +374,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -385,7 +385,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 					});
 			}
 			const db = getDatabase();
-			const list = db
+			const list = await db
 				.select()
 				.from(caseEvidence)
 				.where(eq(caseEvidence.caseId, caseId))
@@ -402,7 +402,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -420,7 +420,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 
 			// Idempotent deduplication check
 			if (idempotencyKey) {
-				const existing = db
+				const existing = await db
 					.select()
 					.from(caseEvidence)
 					.where(
@@ -444,7 +444,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			const id = crypto.randomUUID();
 			const now = new Date().toISOString();
 
-			db.insert(caseEvidence)
+			await db.insert(caseEvidence)
 				.values({
 					id,
 					caseId,
@@ -465,7 +465,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				})
 				.run();
 
-			recordActivity(caseId, request.user!.id, "EVIDENCE_ADDED", {
+			await recordActivity(caseId, request.user!.id, "EVIDENCE_ADDED", {
 				evidenceId: id,
 				title: body.title,
 			});
@@ -489,7 +489,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -500,7 +500,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 					});
 			}
 			const db = getDatabase();
-			const list = db
+			const list = await db
 				.select()
 				.from(evidenceRelationships)
 				.where(eq(evidenceRelationships.caseId, caseId))
@@ -517,7 +517,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -531,7 +531,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			const db = getDatabase();
 			const id = crypto.randomUUID();
 
-			db.insert(evidenceRelationships)
+			await db.insert(evidenceRelationships)
 				.values({
 					id,
 					caseId,
@@ -560,7 +560,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -571,7 +571,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 					});
 			}
 			const db = getDatabase();
-			const list = db
+			const list = await db
 				.select()
 				.from(caseQuestions)
 				.where(eq(caseQuestions.caseId, caseId))
@@ -588,7 +588,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -603,7 +603,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			const id = crypto.randomUUID();
 			const now = new Date().toISOString();
 
-			db.insert(caseQuestions)
+			await db.insert(caseQuestions)
 				.values({
 					id,
 					caseId,
@@ -616,7 +616,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				})
 				.run();
 
-			recordActivity(caseId, request.user!.id, "QUESTION_ASKED", {
+			await recordActivity(caseId, request.user!.id, "QUESTION_ASKED", {
 				question: body.question,
 			});
 			return reply.status(201).send({ id, message: "Question created" });
@@ -632,7 +632,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				caseId: string;
 				questionId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -645,7 +645,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			const body = AnswerQuestionInputSchema.parse(request.body);
 			const db = getDatabase();
 
-			db.update(caseQuestions)
+			await db.update(caseQuestions)
 				.set({
 					answer: body.answer,
 					isAnswered: true,
@@ -660,7 +660,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				)
 				.run();
 
-			recordActivity(caseId, request.user!.id, "QUESTION_ANSWERED", {
+			await recordActivity(caseId, request.user!.id, "QUESTION_ANSWERED", {
 				questionId,
 			});
 			return reply.send({ message: "Question answered" });
@@ -676,7 +676,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -687,7 +687,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 					});
 			}
 			const db = getDatabase();
-			const list = db
+			const list = await db
 				.select()
 				.from(hypotheses)
 				.where(eq(hypotheses.caseId, caseId))
@@ -704,7 +704,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -719,7 +719,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			const id = crypto.randomUUID();
 			const now = new Date().toISOString();
 
-			db.insert(hypotheses)
+			await db.insert(hypotheses)
 				.values({
 					id,
 					caseId,
@@ -733,7 +733,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				})
 				.run();
 
-			recordActivity(caseId, request.user!.id, "HYPOTHESIS_CREATED", {
+			await recordActivity(caseId, request.user!.id, "HYPOTHESIS_CREATED", {
 				description: body.description,
 			});
 			return reply.status(201).send({ id, message: "Hypothesis created" });
@@ -749,7 +749,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				caseId: string;
 				hypothesisId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -762,7 +762,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			const body = UpdateHypothesisInputSchema.parse(request.body);
 			const db = getDatabase();
 
-			db.update(hypotheses)
+			await db.update(hypotheses)
 				.set({
 					...body,
 					updatedAt: new Date().toISOString(),
@@ -773,7 +773,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				.run();
 
 			if (body.status) {
-				recordActivity(caseId, request.user!.id, "HYPOTHESIS_STATUS_CHANGED", {
+				await recordActivity(caseId, request.user!.id, "HYPOTHESIS_STATUS_CHANGED", {
 					hypothesisId,
 					status: body.status,
 				});
@@ -791,7 +791,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -802,7 +802,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 					});
 			}
 			const db = getDatabase();
-			const list = db
+			const list = await db
 				.select()
 				.from(rootCauses)
 				.where(eq(rootCauses.caseId, caseId))
@@ -819,7 +819,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -834,7 +834,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			const id = crypto.randomUUID();
 			const now = new Date().toISOString();
 
-			db.insert(rootCauses)
+			await db.insert(rootCauses)
 				.values({
 					id,
 					caseId,
@@ -850,7 +850,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				})
 				.run();
 
-			recordActivity(caseId, request.user!.id, "ROOT_CAUSE_IDENTIFIED", {
+			await recordActivity(caseId, request.user!.id, "ROOT_CAUSE_IDENTIFIED", {
 				statement: body.statement,
 			});
 			return reply.status(201).send({ id, message: "Root cause record saved" });
@@ -866,7 +866,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -877,7 +877,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 					});
 			}
 			const db = getDatabase();
-			const list = db
+			const list = await db
 				.select()
 				.from(solutions)
 				.where(eq(solutions.caseId, caseId))
@@ -895,7 +895,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -910,7 +910,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			const id = crypto.randomUUID();
 			const now = new Date().toISOString();
 
-			db.insert(solutions)
+			await db.insert(solutions)
 				.values({
 					id,
 					caseId,
@@ -930,7 +930,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				})
 				.run();
 
-			recordActivity(caseId, request.user!.id, "SOLUTION_ADDED", {
+			await recordActivity(caseId, request.user!.id, "SOLUTION_ADDED", {
 				name: body.name,
 			});
 			return reply.status(201).send({ id, message: "Solution proposed" });
@@ -946,7 +946,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -957,7 +957,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 					});
 			}
 			const db = getDatabase();
-			const list = db
+			const list = await db
 				.select()
 				.from(decisions)
 				.where(eq(decisions.caseId, caseId))
@@ -975,7 +975,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -988,7 +988,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			const body = CreateDecisionInputSchema.parse(request.body);
 			const db = getDatabase();
 
-			const existingDecisions = db
+			const existingDecisions = await db
 				.select()
 				.from(decisions)
 				.where(eq(decisions.caseId, caseId))
@@ -997,7 +997,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			const id = crypto.randomUUID();
 			const now = new Date().toISOString();
 
-			db.insert(decisions)
+			await db.insert(decisions)
 				.values({
 					id,
 					caseId,
@@ -1014,13 +1014,13 @@ export const caseRoutes: FastifyPluginAsync = async (
 				.run();
 
 			if (body.chosenSolutionId) {
-				db.update(solutions)
+				await db.update(solutions)
 					.set({ isChosen: true })
 					.where(eq(solutions.id, body.chosenSolutionId))
 					.run();
 			}
 
-			recordActivity(caseId, request.user!.id, "DECISION_RECORDED", {
+			await recordActivity(caseId, request.user!.id, "DECISION_RECORDED", {
 				revision: nextRevision,
 			});
 			return reply
@@ -1038,7 +1038,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -1049,7 +1049,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 					});
 			}
 			const db = getDatabase();
-			const list = db
+			const list = await db
 				.select()
 				.from(caseActions)
 				.where(eq(caseActions.caseId, caseId))
@@ -1066,7 +1066,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -1081,7 +1081,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			const id = crypto.randomUUID();
 			const now = new Date().toISOString();
 
-			db.insert(caseActions)
+			await db.insert(caseActions)
 				.values({
 					id,
 					caseId,
@@ -1098,7 +1098,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				})
 				.run();
 
-			recordActivity(caseId, request.user!.id, "ACTION_CREATED", {
+			await recordActivity(caseId, request.user!.id, "ACTION_CREATED", {
 				title: body.title,
 			});
 			return reply.status(201).send({ id, message: "Action scheduled" });
@@ -1114,7 +1114,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				caseId: string;
 				actionId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -1128,7 +1128,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			const db = getDatabase();
 
 			const now = new Date().toISOString();
-			db.update(caseActions)
+			await db.update(caseActions)
 				.set({
 					...body,
 					completedAt: body.status === "DONE" ? now : null,
@@ -1140,7 +1140,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				.run();
 
 			if (body.status === "DONE") {
-				recordActivity(caseId, request.user!.id, "ACTION_COMPLETED", {
+				await recordActivity(caseId, request.user!.id, "ACTION_COMPLETED", {
 					actionId,
 				});
 			}
@@ -1157,7 +1157,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -1168,7 +1168,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 					});
 			}
 			const db = getDatabase();
-			const list = db
+			const list = await db
 				.select()
 				.from(verifications)
 				.where(eq(verifications.caseId, caseId))
@@ -1185,7 +1185,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -1200,7 +1200,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			const id = crypto.randomUUID();
 			const now = new Date().toISOString();
 
-			db.insert(verifications)
+			await db.insert(verifications)
 				.values({
 					id,
 					caseId,
@@ -1216,7 +1216,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				.run();
 
 			if (body.status === "PASSED") {
-				recordActivity(caseId, request.user!.id, "VERIFICATION_PASSED", { id });
+				await recordActivity(caseId, request.user!.id, "VERIFICATION_PASSED", { id });
 			}
 			return reply
 				.status(201)
@@ -1233,7 +1233,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -1244,7 +1244,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 					});
 			}
 			const db = getDatabase();
-			const retro = db
+			const retro = await db
 				.select()
 				.from(retrospectives)
 				.where(eq(retrospectives.caseId, caseId))
@@ -1261,7 +1261,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -1274,7 +1274,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			const body = CreateRetrospectiveInputSchema.parse(request.body);
 			const db = getDatabase();
 
-			const existing = db
+			const existing = await db
 				.select()
 				.from(retrospectives)
 				.where(eq(retrospectives.caseId, caseId))
@@ -1282,7 +1282,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			const now = new Date().toISOString();
 
 			if (existing) {
-				db.update(retrospectives)
+				await db.update(retrospectives)
 					.set({
 						...body,
 						updatedAt: now,
@@ -1293,7 +1293,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 			}
 
 			const id = crypto.randomUUID();
-			db.insert(retrospectives)
+			await db.insert(retrospectives)
 				.values({
 					id,
 					caseId,
@@ -1317,7 +1317,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 				workspaceId: string;
 				caseId: string;
 			};
-			if (!getAuthorizedCase(workspaceId, caseId)) {
+			if (!(await getAuthorizedCase(workspaceId, caseId))) {
 				return reply
 					.status(404)
 					.send({
@@ -1328,7 +1328,7 @@ export const caseRoutes: FastifyPluginAsync = async (
 					});
 			}
 			const db = getDatabase();
-			const list = db
+			const list = await db
 				.select({
 					id: caseActivities.id,
 					caseId: caseActivities.caseId,

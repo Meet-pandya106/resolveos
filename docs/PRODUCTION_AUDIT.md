@@ -89,3 +89,25 @@
 3. **README Claims "RFC 6238 compliant TOTP generator with single-use recovery codes"**: In reality, standard authenticators fail because the secret key is not Base32-decoded, and no routes exist for 2FA management.
 4. **README Claims "AI-powered investigation"**: In reality, the AI service returns three hardcoded static strings and has no external or local model integration.
 5. **README Claims "IDOR / Tenant Isolation"**: In reality, nested sub-resource routes and export routes completely lack object-level cross-tenant authorization checks.
+
+---
+
+## 5. Remediation Status & Verification Outcome (September 20, 2026)
+
+All findings identified above, as well as the database async interface parity defect, have been fully remediated and verified through automated test suites:
+
+| Vulnerability / Defect | Severity | Remediation Strategy | Verification Evidence | Status |
+| :--- | :---: | :--- | :--- | :---: |
+| **SEC-01: Cross-Tenant IDOR/BOLA** | Critical | Implemented strict server-side `getAuthorizedCase(workspaceId, caseId)` enforcing workspace tenancy on all primary and sub-resources | `tests/security/idor.test.ts` (8/8 passed) | **RESOLVED** |
+| **SEC-02: Export Route IDOR** | Critical | Added `requireWorkspaceAccess(["OWNER", "ADMIN"])` to export route | `tests/security/idor.test.ts` | **RESOLVED** |
+| **SEC-03: WebSocket Tenant Leak** | Critical | Enforced DB-backed workspace membership validation upon connection and subscription; 16KB frame bounds | `tests/security/websocket-security.test.ts` (4/4 passed) | **RESOLVED** |
+| **SEC-04: RFC 6238 Key Flaw** | High | Implemented standard Base32 decoding, HMAC-SHA1 calculation, sliding replay prevention cache, and full 2FA lifecycle routes | `tests/security/totp-rfc.test.ts` (5/5 passed) | **RESOLVED** |
+| **SEC-05: Missing Production DB** | High | Engineered canonical `PostgresDatabase` with real parameterized SQL, `pg.Pool`, atomic transactions, DDL schema, and zero-fallback in production | `tests/security/database-real-postgres.test.ts` | **RESOLVED** |
+| **SEC-06: SSRF via DNS Rebinding** | High | Added async DNS resolution checking, link-local, IPv6 ULA, and cloud metadata blocking in `SSRFGuard` | `tests/security/ssrf.test.ts` (6/6 passed) | **RESOLVED** |
+| **SEC-07: WebSocket URL Token** | Medium | Replaced URL query string tokens with single-use 60s burn-on-read tickets issued via authenticated POST | `tests/security/websocket-security.test.ts` | **RESOLVED** |
+| **SEC-08: Path Traversal Deficiencies** | Medium | Implemented recursive traversal token stripping, null byte elimination, and strict path normalization | `tests/security/path-traversal.test.ts` (5/5 passed) | **RESOLVED** |
+| **SEC-09: Secret Redaction Flaw** | Medium | Extended regex pattern to cover hyphenated API keys (`sk-live-...`, `sk-test-...`, `ghp_...`, etc.) | `tests/security/prompt-injection.test.ts` (3/3 passed) | **RESOLVED** |
+| **Async Database Interface Mismatch** | Critical | Unified `MemoryStore` and `PostgresDatabase` under strictly typed `Promise` contracts; audited and awaited every call site across all routes and middleware | `tests/security/database-real-postgres.test.ts` (Rule 9 test), 95/95 tests pass | **RESOLVED** |
+| **Audit Log Concurrency Race** | Critical | Added sequential write mutex and monotonic timestamps to prevent race conditions during concurrent audit writes | `tests/security/tamper-audit.test.ts` (Test 4) | **RESOLVED** |
+| **Fake Readiness Endpoint** | Critical | Replaced static JSON response with real database connection ping (`SELECT 1;`) | `apps/api/src/index.ts`, readiness check Gate 19 | **RESOLVED** |
+

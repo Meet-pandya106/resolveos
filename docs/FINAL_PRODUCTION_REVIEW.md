@@ -269,3 +269,28 @@ ResolveOS has achieved full **Production-Ready, Self-Hostable, Hardened Open-Sou
 | **Right to Erasure & Data Portability** | `apps/api/src/routes/privacy.ts`: Anonymization and authorized workspace export in JSON/CSV. | `tests/integration/api.test.ts` | **VERIFIED** |
 | **Strict Static Analysis & Clean Lint** | `biome.json`: Biome static analysis across entire TypeScript/React monorepo with 0 errors. | Gate 5 of `production-readiness-check.cjs` | **VERIFIED** |
 | **Live 28-Step Acceptance Scenario** | `tests/e2e/production-scenario-28.test.ts`: Complete multi-tenant lifecycle, IDOR, AI sandbox, audit verification. | `tests/e2e/production-scenario-28.test.ts` (28/28 steps passing) | **VERIFIED** |
+
+---
+
+## 12. Final Production Issue Remediation Matrix (Rules 122, 123)
+
+| Issue | Severity | Fixed | Test / Verification | Evidence |
+| :--- | :---: | :---: | :--- | :--- |
+| **Async DB Mismatch** | Critical | Yes | `tests/security/database-real-postgres.test.ts` (Rule 9 parity test) | MemoryStore and PostgresDatabase now expose unified `Promise` interface for `.get()`, `.all()`, and `.run()`. |
+| **DB Call Sites Not Awaited** | Critical | Yes | `npm run typecheck` & 18 test suites | Every database call in `auth.ts`, `cases.ts`, `workspaces.ts`, `privacy.ts`, `search.ts`, `sync.ts`, `ai.ts`, and `middleware/auth.ts` is explicitly `await`ed. |
+| **Audit Concurrency Race** | Critical | Yes | `tests/security/tamper-audit.test.ts` (Test 4) | Sequential write mutex and monotonic timestamps guarantee uncorrupted, un-forked hash chains under concurrent load. |
+| **Audit Swallowed Errors** | Critical | Yes | `apps/api/src/services/AuditService.ts` | Added `isCritical` flag; critical audit write failures propagate and fail the parent transaction rather than failing silently. |
+| **Audit Async DB Writes** | Critical | Yes | `tests/security/tamper-audit.test.ts` | `AuditService.log()` is strictly `async` and awaited by callers. No fire-and-forget writes. |
+| **Audit Full-Table Scan** | High | Yes | `apps/api/src/services/AuditService.ts` | Replaced unbounded full-table scan with `ORDER BY createdAt DESC LIMIT 1`. |
+| **`/readiness` False Positive** | Critical | Yes | `apps/api/src/index.ts` | `/readiness` executes real `SELECT 1` ping against active PostgreSQL driver, returning 503 if unreachable. |
+| **`.env` Exposed Secrets** | Critical | Yes | `git ls-files .env*` & `git log` scan | `.env` was confirmed never tracked in git history; `.gitignore` enforced; `.env.example` scrubbed of default secrets. |
+| **`resolveos.db.json` Leftovers** | Critical | Yes | `git ls-files resolveos.db.json` | Removed local residual files; `.gitignore` enforced; zero database JSON files tracked in git. |
+| **PostgreSQL Persistence** | Critical | Yes | `tests/security/database-real-postgres.test.ts` | Production engine uses parameterized SQL, connection pool, transactional rollback, zero memory fallback. |
+| **Stale README Test Count** | High | Yes | `README.md` | Badge and documentation updated from stale 84 to verified 95 tests across 18 suites. |
+| **README Setup Flow** | High | Yes | `README.md` | Comprehensive clone, configure, PostgreSQL launch, build, seed, and run instructions added. |
+| **Dynamic Health Version** | Medium | Yes | `apps/api/src/index.ts` | `/health` dynamically reads version from `package.json` rather than hardcoding. |
+| **Graceful Process Shutdown** | High | Yes | `apps/api/src/index.ts` | Added `SIGTERM` and `SIGINT` handlers that cleanly close Fastify HTTP server and PostgreSQL pool. |
+| **WebSocket Ticket Lifecycle**| Medium | Yes | `apps/api/src/services/RealtimeService.ts` | Added periodic TTL pruning of expired tickets to prevent memory leakage; documented single-instance boundary. |
+| **JWT Session Policy** | High | Yes | `README.md` & `docs/SECURITY.md` | Explicitly documented 7-day JWT coupled with mandatory per-request database revocation checks. |
+| **Role Model Consistency** | Medium | Yes | `packages/shared/src/index.ts` & middleware | Enforced canonical role set `OWNER`, `ADMIN`, `MEMBER`, `VIEWER` across database, middleware, and domain logic. |
+

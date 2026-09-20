@@ -8,10 +8,13 @@ import helmet from "@fastify/helmet";
 import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
 import websocket from "@fastify/websocket";
-import { getDatabase } from "@resolveos/database";
+import { closeDatabase, getDatabase } from "@resolveos/database";
 import crypto from "crypto";
 import dotenv from "dotenv";
 import fastify from "fastify";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { aiRoutes } from "./routes/ai.js";
 import { authRoutes } from "./routes/auth.js";
 import { caseRoutes } from "./routes/cases.js";
@@ -22,6 +25,17 @@ import { workspaceRoutes } from "./routes/workspaces.js";
 import { RealtimeService } from "./services/RealtimeService.js";
 
 dotenv.config();
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+let pkgVersion = "1.0.0";
+try {
+	const pkgPath = path.resolve(__dirname, "../package.json");
+	if (fs.existsSync(pkgPath)) {
+		pkgVersion = JSON.parse(fs.readFileSync(pkgPath, "utf8")).version || "1.0.0";
+	}
+} catch {
+	pkgVersion = "1.0.0";
+}
 
 const port = parseInt(process.env.PORT || "4000", 10);
 const host = process.env.HOST || "0.0.0.0";
@@ -173,7 +187,7 @@ server.register(async (fastify) => {
 			}
 
 			const workspaceId = url.searchParams.get("workspaceId") || undefined;
-			RealtimeService.registerClient(connection, userId, workspaceId);
+			await RealtimeService.registerClient(connection, userId, workspaceId);
 		} catch (err) {
 			connection.close(4401, "Invalid authentication credential");
 		}
@@ -193,17 +207,33 @@ await server.register(syncRoutes, { prefix: "/api/workspaces" });
 server.get("/health", async (request, reply) => {
 	return reply.send({
 		status: "ok",
-		version: "1.0.0",
+		version: pkgVersion,
 		timestamp: new Date().toISOString(),
 	});
 });
 
 server.get("/readiness", async (request, reply) => {
-	return reply.send({
-		status: "ready",
-		database: "connected",
-		timestamp: new Date().toISOString(),
-	});
+	try {
+		const db = getDatabase();
+		if (db.isPostgres()) {
+			const pool = (db as any).getPool();
+			await pool.query("SELECT 1;");
+		}
+		return reply.status(200).send({
+			status: "ready",
+			database: "connected",
+			engine: db.isPostgres() ? "postgresql" : "memory",
+			timestamp: new Date().toISOString(),
+		});
+	} catch (err: any) {
+		request.log.error({ err }, "Readiness check failed: Database unreachable");
+		return reply.status(503).send({
+			status: "not_ready",
+			database: "disconnected",
+			error: err.message,
+			timestamp: new Date().toISOString(),
+		});
+	}
 });
 
 // 8. Global Centralized Error Boundary
@@ -236,6 +266,30 @@ server.setErrorHandler((error: any, request, reply) => {
 		requestId: request.id,
 	});
 });
+
+// Graceful Shutdown Handlers (Rule 38, 84)
+let isShuttingDown = false;
+export async function gracefulShutdown(signal: string) {
+	if (isShuttingDown) return;
+	isShuttingDown = true;
+	console.log(`[RESOLVEOS] Received ${signal}. Starting graceful shutdown...`);
+
+	try {
+		await server.close();
+		console.log("[RESOLVEOS] Fastify server closed.");
+		closeDatabase();
+		console.log("[RESOLVEOS] Database connections closed.");
+		process.exit(0);
+	} catch (err) {
+		console.error("[RESOLVEOS] Error during graceful shutdown:", err);
+		process.exit(1);
+	}
+}
+
+if (process.env.NODE_ENV !== "test") {
+	process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+	process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+}
 
 // Start Server
 export async function startServer() {

@@ -305,7 +305,7 @@ describe("Rule 121: 28-Step Production Acceptance Scenario", () => {
 		expect(idorRes.statusCode).toBe(403);
 
 		// Step 26: Verify Cryptographic Audit Chain
-		const auditVerification = AuditService.verifyChain();
+		const auditVerification = await AuditService.verifyChain();
 		expect(auditVerification.valid).toBe(true);
 		expect(auditVerification.totalEvents).toBeGreaterThanOrEqual(1);
 

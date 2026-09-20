@@ -74,7 +74,7 @@ export async function authenticate(
 		const db = getDatabase();
 
 		// Check user exists and is not soft-deleted
-		const user = db
+		const user = await db
 			.select()
 			.from(users)
 			.where(and(eq(users.id, decoded.id), eq(users.deletedAt, null as any)))
@@ -90,7 +90,7 @@ export async function authenticate(
 
 		// If session ID is present, verify session has not been revoked
 		if (decoded.sessionId) {
-			const session = db
+			const session = await db
 				.select()
 				.from(userSessions)
 				.where(
@@ -112,7 +112,7 @@ export async function authenticate(
 
 			// Verify session expiration timestamp
 			if (session.expiresAt && new Date(session.expiresAt) <= new Date()) {
-				db.update(userSessions)
+				await db.update(userSessions)
 					.set({ isRevoked: true })
 					.where(eq(userSessions.id, decoded.sessionId))
 					.run();
@@ -125,7 +125,7 @@ export async function authenticate(
 			}
 
 			// Update session last active time
-			db.update(userSessions)
+			await db.update(userSessions)
 				.set({ lastActiveAt: new Date().toISOString() })
 				.where(eq(userSessions.id, decoded.sessionId))
 				.run();
@@ -183,7 +183,7 @@ export function requireWorkspaceAccess(
 		}
 
 		const db = getDatabase();
-		const membership = db
+		const membership = await db
 			.select()
 			.from(workspaceMembers)
 			.where(

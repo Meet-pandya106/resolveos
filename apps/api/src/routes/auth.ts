@@ -35,7 +35,7 @@ export const authRoutes: FastifyPluginAsync = async (
 		const db = getDatabase();
 
 		// Check if user already exists
-		const existing = db
+		const existing = await db
 			.select()
 			.from(users)
 			.where(eq(users.email, body.email.toLowerCase()))
@@ -58,7 +58,7 @@ export const authRoutes: FastifyPluginAsync = async (
 		const now = new Date().toISOString();
 
 		// Create User
-		db.insert(users)
+		await db.insert(users)
 			.values({
 				id: userId,
 				email: body.email.toLowerCase(),
@@ -73,7 +73,7 @@ export const authRoutes: FastifyPluginAsync = async (
 
 		// Create Default Personal Workspace
 		const workspaceId = crypto.randomUUID();
-		db.insert(workspaces)
+		await db.insert(workspaces)
 			.values({
 				id: workspaceId,
 				name: `${body.name}'s Workspace`,
@@ -86,7 +86,7 @@ export const authRoutes: FastifyPluginAsync = async (
 			})
 			.run();
 
-		db.insert(workspaceMembers)
+		await db.insert(workspaceMembers)
 			.values({
 				id: crypto.randomUUID(),
 				workspaceId,
@@ -98,7 +98,7 @@ export const authRoutes: FastifyPluginAsync = async (
 
 		// Create Session
 		const sessionId = crypto.randomUUID();
-		db.insert(userSessions)
+		await db.insert(userSessions)
 			.values({
 				id: sessionId,
 				userId,
@@ -148,7 +148,7 @@ export const authRoutes: FastifyPluginAsync = async (
 		const body = LoginInputSchema.parse(request.body);
 		const db = getDatabase();
 
-		const user = db
+		const user = await db
 			.select()
 			.from(users)
 			.where(
@@ -228,7 +228,7 @@ export const authRoutes: FastifyPluginAsync = async (
 
 				// Consume and burn the single-use recovery code
 				validCodes.splice(codeIndex, 1);
-				db.update(users)
+				await db.update(users)
 					.set({ recoveryCodes: validCodes })
 					.where(eq(users.id, user.id))
 					.run();
@@ -265,7 +265,7 @@ export const authRoutes: FastifyPluginAsync = async (
 		const sessionId = crypto.randomUUID();
 		const now = new Date().toISOString();
 
-		db.insert(userSessions)
+		await db.insert(userSessions)
 			.values({
 				id: sessionId,
 				userId: user.id,
@@ -318,7 +318,7 @@ export const authRoutes: FastifyPluginAsync = async (
 	// 3. User Profile
 	server.get("/me", { preHandler: [authenticate] }, async (request, reply) => {
 		const db = getDatabase();
-		const user = db
+		const user = await db
 			.select()
 			.from(users)
 			.where(eq(users.id, request.user!.id))
@@ -326,7 +326,7 @@ export const authRoutes: FastifyPluginAsync = async (
 		if (!user) return reply.status(404).send({ error: "User not found" });
 
 		// Fetch user workspaces
-		const memberships = db
+		const memberships = await db
 			.select({
 				workspace: workspaces,
 				role: workspaceMembers.role,
@@ -364,7 +364,7 @@ export const authRoutes: FastifyPluginAsync = async (
 		async (request, reply) => {
 			const db = getDatabase();
 			if (request.user?.sessionId) {
-				db.update(userSessions)
+				await db.update(userSessions)
 					.set({ isRevoked: true })
 					.where(eq(userSessions.id, request.user.sessionId))
 					.run();
@@ -384,7 +384,7 @@ export const authRoutes: FastifyPluginAsync = async (
 		{ preHandler: [authenticate] },
 		async (request, reply) => {
 			const db = getDatabase();
-			db.update(userSessions)
+			await db.update(userSessions)
 				.set({ isRevoked: true })
 				.where(eq(userSessions.userId, request.user!.id))
 				.run();
@@ -406,7 +406,7 @@ export const authRoutes: FastifyPluginAsync = async (
 		{ preHandler: [authenticate] },
 		async (request, reply) => {
 			const db = getDatabase();
-			const sessions = db
+			const sessions = await db
 				.select()
 				.from(userSessions)
 				.where(
@@ -433,7 +433,7 @@ export const authRoutes: FastifyPluginAsync = async (
 		async (request, reply) => {
 			const { id } = request.params as { id: string };
 			const db = getDatabase();
-			db.update(userSessions)
+			await db.update(userSessions)
 				.set({ isRevoked: true })
 				.where(
 					and(
@@ -488,7 +488,7 @@ export const authRoutes: FastifyPluginAsync = async (
 			}
 
 			const recoveryCodes = TOTPService.generateRecoveryCodes(8);
-			db.update(users)
+			await db.update(users)
 				.set({
 					twoFactorEnabled: true,
 					twoFactorSecret: body.secret,
@@ -517,7 +517,7 @@ export const authRoutes: FastifyPluginAsync = async (
 			const body = TOTPDisableInputSchema.parse(request.body);
 			const db = getDatabase();
 
-			const user = db
+			const user = await db
 				.select()
 				.from(users)
 				.where(eq(users.id, request.user!.id))
@@ -545,7 +545,7 @@ export const authRoutes: FastifyPluginAsync = async (
 					.send({ error: "Invalid two-factor authentication code." });
 			}
 
-			db.update(users)
+			await db.update(users)
 				.set({
 					twoFactorEnabled: false,
 					twoFactorSecret: null,

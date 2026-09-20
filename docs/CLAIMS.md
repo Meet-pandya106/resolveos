@@ -20,4 +20,6 @@ This contract maps every significant publicly advertised claim in the README and
 | **Right to Erasure / Data Portability** | `apps/api/src/routes/privacy.ts`: Password-confirmed account anonymization and authorized JSON/CSV workspace export | `tests/integration/api.test.ts` | **PASS** |
 | **Strict Static Analysis with Biome** | `biome.json`: Production-grade Biome linter replacing fake echo scripts; 0 errors across monorepo | `npm run lint` / Gate 05 | **PASS** |
 | **28-Step Production Acceptance Scenario** | `tests/e2e/production-scenario-28.test.ts`: Exhaustive live behavioral test executing multi-tenant isolation, decision gates, audit chain, and AI defenses | `tests/e2e/production-scenario-28.test.ts` | **PASS** |
+| **Unified Async Database Contract** | `packages/database/src/index.ts` & all API routes: Both MemoryStore and PostgresDatabase expose strictly typed `Promise` contracts; all call sites awaited | `tests/security/database-real-postgres.test.ts` (Rule 9 test) | **PASS** |
+| **Audit Log Concurrency Serialization** | `apps/api/src/services/AuditService.ts`: Mutex serialization and monotonic timestamps prevent race conditions and forked chains under concurrent writes | `tests/security/tamper-audit.test.ts` (concurrency test) | **PASS** |
 

@@ -280,7 +280,7 @@ describe("E2E: Complete 12-Stage Problem Resolution Lifecycle & Verification Gat
 		expect(retroRes.statusCode).toBe(201);
 
 		// Validate audit chain integrity
-		const auditStatus = AuditService.verifyChain();
+		const auditStatus = await AuditService.verifyChain();
 		expect(auditStatus.valid).toBe(true);
 		expect(auditStatus.totalEvents).toBeGreaterThan(0);
 	});

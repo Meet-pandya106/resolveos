@@ -74,10 +74,10 @@ describe("Security: WebSocket Real-Time Tenant Isolation & Authorization", () =>
 		return ws;
 	}
 
-	it("blocks unauthorized client from subscribing to another tenant workspace events", () => {
+	it("blocks unauthorized client from subscribing to another tenant workspace events", async () => {
 		const mockWs = createMockWebSocket();
 		// User B connects
-		RealtimeService.registerClient(mockWs, userBId);
+		await RealtimeService.registerClient(mockWs, userBId);
 
 		// User B attempts to subscribe to Workspace A
 		mockWs.emit(
@@ -90,6 +90,8 @@ describe("Security: WebSocket Real-Time Tenant Isolation & Authorization", () =>
 			),
 		);
 
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
 		expect(mockWs.sentMessages.length).toBeGreaterThan(0);
 		const lastMsg = JSON.parse(
 			mockWs.sentMessages[mockWs.sentMessages.length - 1],
@@ -100,10 +102,10 @@ describe("Security: WebSocket Real-Time Tenant Isolation & Authorization", () =>
 		);
 	});
 
-	it("blocks unauthorized client from focusing on another tenant case", () => {
+	it("blocks unauthorized client from focusing on another tenant case", async () => {
 		const mockWs = createMockWebSocket();
 		// User B connects
-		RealtimeService.registerClient(mockWs, userBId);
+		await RealtimeService.registerClient(mockWs, userBId);
 
 		// User B attempts to focus Case A
 		mockWs.emit(
@@ -116,6 +118,8 @@ describe("Security: WebSocket Real-Time Tenant Isolation & Authorization", () =>
 			),
 		);
 
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
 		expect(mockWs.sentMessages.length).toBeGreaterThan(0);
 		const lastMsg = JSON.parse(
 			mockWs.sentMessages[mockWs.sentMessages.length - 1],
@@ -126,10 +130,10 @@ describe("Security: WebSocket Real-Time Tenant Isolation & Authorization", () =>
 		);
 	});
 
-	it("permits authorized client to subscribe to their own workspace events", () => {
+	it("permits authorized client to subscribe to their own workspace events", async () => {
 		const mockWs = createMockWebSocket();
 		// User A connects
-		RealtimeService.registerClient(mockWs, userAId);
+		await RealtimeService.registerClient(mockWs, userAId);
 
 		// User A subscribes to Workspace A
 		mockWs.emit(
@@ -141,6 +145,8 @@ describe("Security: WebSocket Real-Time Tenant Isolation & Authorization", () =>
 				}),
 			),
 		);
+
+		await new Promise((resolve) => setTimeout(resolve, 20));
 
 		expect(mockWs.sentMessages.length).toBeGreaterThan(0);
 		const lastMsg = JSON.parse(

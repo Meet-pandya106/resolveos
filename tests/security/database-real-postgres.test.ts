@@ -154,4 +154,66 @@ describe("Database Architecture Hardening & Real PostgreSQL Verification (Rule 1
 		expect(queriesExecuted).toContain("RELEASE");
 		expect(queriesExecuted).not.toContain("ROLLBACK");
 	});
+
+	it("proves identical async contract parity for both MemoryStore and PostgresDatabase (Rule 9)", async () => {
+		const memDb = initDatabase(":memory:");
+
+		// Verify insert returns a Promise resolving to changes/row
+		const insertPromise = memDb
+			.insert(workspaces)
+			.values({
+				id: "ws-parity-1",
+				name: "Parity Workspace",
+				slug: "parity-ws",
+				ownerId: "u-1",
+			})
+			.run();
+		expect(insertPromise).toBeInstanceOf(Promise);
+		const insertRes = await insertPromise;
+		expect(insertRes.changes).toBe(1);
+		expect(insertRes.row).toBeDefined();
+		expect(insertRes.row.id).toBe("ws-parity-1");
+
+		// Verify select().all() returns a Promise resolving to Array
+		const allPromise = memDb
+			.select()
+			.from(workspaces)
+			.where(eq(workspaces.id, "ws-parity-1"))
+			.all();
+		expect(allPromise).toBeInstanceOf(Promise);
+		const allRes = await allPromise;
+		expect(Array.isArray(allRes)).toBe(true);
+		expect(allRes.length).toBe(1);
+		expect(allRes[0].name).toBe("Parity Workspace");
+
+		// Verify select().get() returns a Promise resolving to row object
+		const getPromise = memDb
+			.select()
+			.from(workspaces)
+			.where(eq(workspaces.id, "ws-parity-1"))
+			.get();
+		expect(getPromise).toBeInstanceOf(Promise);
+		const getRes = await getPromise;
+		expect(getRes).toBeDefined();
+		expect(getRes.name).toBe("Parity Workspace");
+
+		// Verify update().run() returns a Promise
+		const updatePromise = memDb
+			.update(workspaces)
+			.set({ name: "Updated Parity" })
+			.where(eq(workspaces.id, "ws-parity-1"))
+			.run();
+		expect(updatePromise).toBeInstanceOf(Promise);
+		const updateRes = await updatePromise;
+		expect(updateRes.changes).toBe(1);
+
+		// Verify delete().run() returns a Promise
+		const deletePromise = memDb
+			.delete(workspaces)
+			.where(eq(workspaces.id, "ws-parity-1"))
+			.run();
+		expect(deletePromise).toBeInstanceOf(Promise);
+		const deleteRes = await deletePromise;
+		expect(deleteRes.changes).toBe(1);
+	});
 });

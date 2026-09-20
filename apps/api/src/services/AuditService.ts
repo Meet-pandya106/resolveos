@@ -10,6 +10,18 @@ import crypto from "crypto";
 import { FastifyRequest } from "fastify";
 
 export class AuditService {
+	private static writeMutex: Promise<any> = Promise.resolve();
+	private static lastTimestamp = 0;
+
+	private static getMonotonicTimestamp(): string {
+		let now = Date.now();
+		if (now <= this.lastTimestamp) {
+			now = this.lastTimestamp + 1;
+		}
+		this.lastTimestamp = now;
+		return new Date(now).toISOString();
+	}
+
 	/**
 	 * Computes SHA-256 hash of an audit event chained to previous event hash.
 	 */
@@ -27,7 +39,7 @@ export class AuditService {
 	/**
 	 * Logs a security audit event with cryptographic chaining.
 	 */
-	static log(
+	static async log(
 		action: AuditAction,
 		options: {
 			req?: FastifyRequest;
@@ -36,8 +48,17 @@ export class AuditService {
 			ipAddress?: string;
 			userAgent?: string;
 			details?: Record<string, any>;
+			isCritical?: boolean;
 		},
-	): string {
+	): Promise<string> {
+		// Acquire mutex for atomic chain serialization (Rule 21, 22)
+		const prev = this.writeMutex;
+		let release: () => void;
+		this.writeMutex = new Promise<void>((r) => {
+			release = r;
+		});
+		await prev;
+
 		try {
 			const db = getDatabase();
 			const ip =
@@ -52,61 +73,78 @@ export class AuditService {
 				(options.req && (options.req as any).user
 					? (options.req as any).user.id
 					: null);
-			const createdAt = new Date().toISOString();
+			const createdAt = this.getMonotonicTimestamp();
 
-			// Find last event for cryptographic hash chaining
-			const lastEvents = db.select().from(auditEvents).all();
-			const lastEvent =
-				lastEvents.length > 0
-					? (lastEvents[lastEvents.length - 1] as any)
-					: null;
-			const previousHash =
-				lastEvent && lastEvent.hash
-					? lastEvent.hash
-					: "0000000000000000000000000000000000000000000000000000000000000000";
-			const eventHash = this.computeHash(
-				previousHash,
-				action,
-				uid,
-				options.details,
-				createdAt,
-			);
+			// Use transaction for atomic chain serialization (concurrency protection)
+			return await db.transaction(async (tx) => {
+				// Bounded query: find latest event by createdAt DESC limit 1
+				const lastEvent = await tx
+					.select()
+					.from(auditEvents)
+					.orderBy({ field: "createdAt", order: "desc" })
+					.limit(1)
+					.get();
 
-			const id = crypto.randomUUID();
-			db.insert(auditEvents)
-				.values({
-					id,
-					workspaceId: options.workspaceId || null,
-					userId: uid,
-					action,
-					ipAddress: ip,
-					userAgent: agent,
-					details: options.details || {},
+				const previousHash =
+					lastEvent && lastEvent.hash
+						? lastEvent.hash
+						: "0000000000000000000000000000000000000000000000000000000000000000";
+				const eventHash = this.computeHash(
 					previousHash,
-					hash: eventHash,
+					action,
+					uid,
+					options.details,
 					createdAt,
-				})
-				.run();
+				);
 
-			return eventHash;
-		} catch (err) {
+				const id = crypto.randomUUID();
+				await tx
+					.insert(auditEvents)
+					.values({
+						id,
+						workspaceId: options.workspaceId || null,
+						userId: uid,
+						action,
+						ipAddress: ip,
+						userAgent: agent,
+						details: options.details || {},
+						previousHash,
+						hash: eventHash,
+						createdAt,
+					})
+					.run();
+
+				return eventHash;
+			});
+		} catch (err: any) {
 			console.error("[AuditService] Failed to write audit event:", err);
+			if (options.isCritical) {
+				throw new Error(
+					`Critical audit event write failed for action ${action}: ${err.message}`,
+				);
+			}
 			return "";
+		} finally {
+			release!();
 		}
 	}
 
 	/**
 	 * Verifies the mathematical integrity of the audit log hash chain.
 	 */
-	static verifyChain(): {
+	static async verifyChain(): Promise<{
 		valid: boolean;
 		totalEvents: number;
 		brokenEventId?: string;
 		error?: string;
-	} {
+	}> {
 		try {
 			const db = getDatabase();
-			const events = db.select().from(auditEvents).all();
+			const events = await db
+				.select()
+				.from(auditEvents)
+				.orderBy({ field: "createdAt", order: "asc" })
+				.all();
 			if (events.length === 0) return { valid: true, totalEvents: 0 };
 
 			let expectedPrevHash =

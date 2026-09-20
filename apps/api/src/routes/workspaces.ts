@@ -31,7 +31,7 @@ export const workspaceRoutes: FastifyPluginAsync = async (
 	// 1. List User Workspaces
 	server.get("/", async (request, reply) => {
 		const db = getDatabase();
-		const list = db
+		const list = await db
 			.select({
 				workspace: workspaces,
 				role: workspaceMembers.role,
@@ -59,7 +59,7 @@ export const workspaceRoutes: FastifyPluginAsync = async (
 		const slug = body.slug || `ws-${crypto.randomBytes(4).toString("hex")}`;
 		const now = new Date().toISOString();
 
-		db.insert(workspaces)
+		await db.insert(workspaces)
 			.values({
 				id: workspaceId,
 				name: body.name,
@@ -73,7 +73,7 @@ export const workspaceRoutes: FastifyPluginAsync = async (
 			})
 			.run();
 
-		db.insert(workspaceMembers)
+		await db.insert(workspaceMembers)
 			.values({
 				id: crypto.randomUUID(),
 				workspaceId,
@@ -104,7 +104,7 @@ export const workspaceRoutes: FastifyPluginAsync = async (
 		async (request, reply) => {
 			const { workspaceId } = request.params as { workspaceId: string };
 			const db = getDatabase();
-			const ws = db
+			const ws = await db
 				.select()
 				.from(workspaces)
 				.where(eq(workspaces.id, workspaceId))
@@ -124,7 +124,7 @@ export const workspaceRoutes: FastifyPluginAsync = async (
 			const db = getDatabase();
 			const now = new Date().toISOString();
 
-			db.update(workspaces)
+			await db.update(workspaces)
 				.set({
 					...body,
 					updatedAt: now,
@@ -144,7 +144,7 @@ export const workspaceRoutes: FastifyPluginAsync = async (
 			const { workspaceId } = request.params as { workspaceId: string };
 			const db = getDatabase();
 
-			const members = db
+			const members = await db
 				.select({
 					id: workspaceMembers.id,
 					role: workspaceMembers.role,
@@ -174,7 +174,7 @@ export const workspaceRoutes: FastifyPluginAsync = async (
 			const body = AddMemberInputSchema.parse(request.body);
 			const db = getDatabase();
 
-			const targetUser = db
+			const targetUser = await db
 				.select()
 				.from(users)
 				.where(eq(users.email, body.email.toLowerCase()))
@@ -188,7 +188,7 @@ export const workspaceRoutes: FastifyPluginAsync = async (
 				});
 			}
 
-			const existingMember = db
+			const existingMember = await db
 				.select()
 				.from(workspaceMembers)
 				.where(
@@ -208,7 +208,7 @@ export const workspaceRoutes: FastifyPluginAsync = async (
 			const memberId = crypto.randomUUID();
 			const now = new Date().toISOString();
 
-			db.insert(workspaceMembers)
+			await db.insert(workspaceMembers)
 				.values({
 					id: memberId,
 					workspaceId,
@@ -237,7 +237,7 @@ export const workspaceRoutes: FastifyPluginAsync = async (
 		async (request, reply) => {
 			const { workspaceId } = request.params as { workspaceId: string };
 			const db = getDatabase();
-			const keys = db
+			const keys = await db
 				.select()
 				.from(apiKeys)
 				.where(
@@ -277,7 +277,7 @@ export const workspaceRoutes: FastifyPluginAsync = async (
 			const apiKeyId = crypto.randomUUID();
 			const now = new Date().toISOString();
 
-			db.insert(apiKeys)
+			await db.insert(apiKeys)
 				.values({
 					id: apiKeyId,
 					workspaceId,

@@ -10,7 +10,7 @@ A privacy-first, local-first Problem Resolution Operating System for engineering
 [![Fastify](https://img.shields.io/badge/Fastify-5.2-black?logo=fastify)](https://fastify.dev/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react)](https://react.dev/)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
-[![Vitest](https://img.shields.io/badge/Tests-84%20Passed-brightgreen)](https://vitest.dev/)
+[![Vitest](https://img.shields.io/badge/Tests-95%20Passed-brightgreen)](https://vitest.dev/)
 [![Security](https://img.shields.io/badge/Security-Hardened-success)](./docs/SECURITY.md)
 [![License](https://img.shields.io/badge/License-MIT-purple)](./LICENSE)
 
@@ -125,24 +125,51 @@ ResolveOS is engineered for organizations and teams that cannot afford ambiguous
 ### Prerequisites
 - Node.js 20+ (tested on Node v20, v22)
 - npm 9+
-- Optional: PostgreSQL 14+ (for production mode)
+- PostgreSQL 14+ (Required for persistent production & self-hosted deployments)
+- Docker & Docker Compose (Optional, for instant 1-command container deployment)
 
-### 1. Clone & Install
+### 1. Clone & Configure
 ```bash
-# Navigate to project directory
+# Clone the repository
+git clone https://github.com/Meet-pandya106/resolveos.git
 cd resolveos
 
-# Install dependencies across all workspace packages
-npm install
+# Copy environment configuration template
+cp .env.example .env
+
+# Generate secure random secrets for JWT and Session encryption:
+# Linux/macOS: openssl rand -hex 32
+# Windows PowerShell: -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Max 256) })
 ```
 
-### 2. Populate Demo Data
+### 2. Configure Database
+ResolveOS uses a canonical production PostgreSQL driver with ACID transaction pooling.
+
+**Option A: Local Docker PostgreSQL**
 ```bash
-# Seed synthetic demo cases (Payment Latency Surge, CI Pipeline Flakiness)
+# Launch persistent PostgreSQL container
+docker compose up -d postgres
+```
+
+**Option B: Existing PostgreSQL Instance**
+Set `DATABASE_URL` in your `.env`:
+```env
+DATABASE_URL=postgres://resolveos_user:your_secure_password@localhost:5432/resolveos
+```
+
+### 3. Install & Build
+```bash
+# Install workspace dependencies
+npm install
+
+# Build all packages and web frontend
+npm run build
+
+# Populate initial schema and synthetic demo incident data
 npm run db:seed
 ```
 
-### 3. Launch Development Server
+### 4. Launch Development Server
 ```bash
 # Starts Fastify Backend (Port 4000) and Vite Web App (Port 5173) concurrently
 npm run dev
@@ -174,7 +201,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## 🧪 Testing & Verification
 
-ResolveOS includes 84 automated tests across 16 suites covering domain logic, cryptographic security, IDOR regression, concurrency, and end-to-end API flows:
+ResolveOS includes 95 automated tests across 18 suites covering domain logic, cryptographic security, IDOR regression, concurrency, and end-to-end API flows:
 
 ```bash
 # Run all Vitest suites
@@ -186,7 +213,7 @@ npm run test:unit
 # Run security regression tests (IDOR, Role Escalation, SSRF, TOTP, WebSocket)
 npm run test:security
 
-# Run production readiness acceptance checks
+# Run production readiness acceptance checks (19 Gates)
 npm run readiness:check
 ```
 
@@ -230,6 +257,19 @@ resolveos/
 - [Operations & Observability Runbook (OPERATIONS.md)](./docs/OPERATIONS.md)
 - [Privacy Policy & Data Rights (PRIVACY.md)](./docs/PRIVACY.md)
 - [Testing & Quality Assurance Guide (TESTING.md)](./docs/TESTING.md)
+- [Comprehensive Production Review & Audit (FINAL_PRODUCTION_REVIEW.md)](./docs/FINAL_PRODUCTION_REVIEW.md)
+
+---
+
+## ⚠️ Scope & Known Architectural Boundaries
+
+ResolveOS is designed as a focused, standalone self-hosted platform for normal real-world engineering and security teams. In alignment with open-source design principles, the following architectural boundaries are intentional:
+
+- **Deployment Topology**: Single-node instance (API + PostgreSQL + Web frontend). Multi-region clustering, distributed consensus, and Kubernetes operators are not required and are out of scope.
+- **WebSocket Ticket Store**: Process-local Map with 60s TTL and auto-pruning. Suitable for single-instance deployments without requiring external Redis/PubSub infrastructure.
+- **TOTP Replay Protection**: Sliding-window replay protection cache is kept process-local.
+- **AI Processing**: Completely optional. Defaults to off; ships with an offline deterministic rules engine that runs with zero external API calls or telemetry.
+- **Authentication**: JWT signed with 7-day expiration coupled with mandatory per-request database session lookup and immediate revocation capability. Enterprise SAML/SSO is not implemented.
 
 ---
 

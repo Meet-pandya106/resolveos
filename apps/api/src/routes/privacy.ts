@@ -32,7 +32,7 @@ export const privacyRoutes: FastifyPluginAsync = async (
 	// 1. Get User Consent Records
 	server.get("/consent", async (request, reply) => {
 		const db = getDatabase();
-		const records = db
+		const records = await db
 			.select()
 			.from(consentRecords)
 			.where(eq(consentRecords.userId, request.user!.id))
@@ -46,7 +46,7 @@ export const privacyRoutes: FastifyPluginAsync = async (
 		const body = UpdateConsentInputSchema.parse(request.body);
 		const db = getDatabase();
 
-		const existing = db
+		const existing = await db
 			.select()
 			.from(consentRecords)
 			.where(
@@ -60,7 +60,7 @@ export const privacyRoutes: FastifyPluginAsync = async (
 		const now = new Date().toISOString();
 
 		if (existing) {
-			db.update(consentRecords)
+			await db.update(consentRecords)
 				.set({
 					status: body.status,
 					version: body.version,
@@ -69,7 +69,7 @@ export const privacyRoutes: FastifyPluginAsync = async (
 				.where(eq(consentRecords.id, existing.id))
 				.run();
 		} else {
-			db.insert(consentRecords)
+			await db.insert(consentRecords)
 				.values({
 					id: crypto.randomUUID(),
 					userId: request.user!.id,
@@ -95,7 +95,7 @@ export const privacyRoutes: FastifyPluginAsync = async (
 	// 3. View Security Audit History
 	server.get("/audit-logs", async (request, reply) => {
 		const db = getDatabase();
-		const logs = db
+		const logs = await db
 			.select()
 			.from(auditEvents)
 			.where(eq(auditEvents.userId, request.user!.id))
@@ -123,7 +123,7 @@ export const privacyRoutes: FastifyPluginAsync = async (
 				});
 
 				if (body.format === "CSV") {
-					const csvData = ExportImportService.exportCasesCsv(workspaceId);
+					const csvData = await ExportImportService.exportCasesCsv(workspaceId);
 					reply.header("Content-Type", "text/csv");
 					reply.header(
 						"Content-Disposition",
@@ -134,13 +134,13 @@ export const privacyRoutes: FastifyPluginAsync = async (
 
 				// Default JSON export
 				const db = getDatabase();
-				const caseRecords = db
+				const caseRecords = await db
 					.select()
 					.from(cases)
 					.where(eq(cases.workspaceId, workspaceId))
 					.all();
-				const fullExport = caseRecords.map((c: any) =>
-					ExportImportService.exportCaseJson(c.id),
+				const fullExport = await Promise.all(
+					caseRecords.map((c: any) => ExportImportService.exportCaseJson(c.id)),
 				);
 
 				return reply.send({
@@ -168,7 +168,7 @@ export const privacyRoutes: FastifyPluginAsync = async (
 		}
 
 		const db = getDatabase();
-		const user = db
+		const user = await db
 			.select()
 			.from(users)
 			.where(eq(users.id, request.user!.id))
@@ -193,7 +193,7 @@ export const privacyRoutes: FastifyPluginAsync = async (
 		const now = new Date().toISOString();
 
 		// Soft delete user and anonymize personal information
-		db.update(users)
+		await db.update(users)
 			.set({
 				name: "Deleted User",
 				email: `deleted_${crypto.randomUUID()}@anonymized.local`,
@@ -209,7 +209,7 @@ export const privacyRoutes: FastifyPluginAsync = async (
 			.run();
 
 		// Revoke all active sessions
-		db.update(userSessions)
+		await db.update(userSessions)
 			.set({ isRevoked: true })
 			.where(eq(userSessions.userId, user.id))
 			.run();

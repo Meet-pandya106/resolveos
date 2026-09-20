@@ -32,12 +32,21 @@ export class RealtimeService {
 
 	/**
 	 * Issues a short-lived, single-use ticket for secure WebSocket handshake without long-lived tokens in URLs.
+	 * Scope limitation: Process-local Map for single-instance standalone deployments.
 	 */
 	static issueTicket(userId: string): { ticket: string; expiresInSeconds: number } {
+		// Prune expired tickets to prevent memory leakage
+		const now = Date.now();
+		for (const [t, rec] of this.wsTickets.entries()) {
+			if (now > rec.expiresAt) {
+				this.wsTickets.delete(t);
+			}
+		}
+
 		const ticket = crypto.randomBytes(32).toString("hex");
 		this.wsTickets.set(ticket, {
 			userId,
-			expiresAt: Date.now() + 60000, // 60s TTL
+			expiresAt: now + 60000, // 60s TTL
 		});
 		return { ticket, expiresInSeconds: 60 };
 	}
@@ -55,17 +64,17 @@ export class RealtimeService {
 		return record.userId;
 	}
 
-	static registerClient(
+	static async registerClient(
 		ws: WebSocket,
 		userId: string,
 		initialWorkspaceId?: string,
-	): ClientConnection {
+	): Promise<ClientConnection> {
 		const db = getDatabase();
 		const authorizedWorkspaces = new Set<string>();
 
 		// If initial workspace requested, verify membership before subscribing
 		if (initialWorkspaceId) {
-			const membership = db
+			const membership = await db
 				.select()
 				.from(workspaceMembers)
 				.where(
@@ -89,7 +98,7 @@ export class RealtimeService {
 
 		this.clients.add(client);
 
-		ws.on("message", (raw) => {
+		ws.on("message", async (raw) => {
 			try {
 				// Enforce maximum frame size limit (16KB)
 				if (raw.toString().length > 16384) {
@@ -106,7 +115,7 @@ export class RealtimeService {
 
 				if (msg.type === "SUBSCRIBE_WORKSPACE" && msg.workspaceId) {
 					const dbInstance = getDatabase();
-					const membership = dbInstance
+					const membership = await dbInstance
 						.select()
 						.from(workspaceMembers)
 						.where(
@@ -139,7 +148,7 @@ export class RealtimeService {
 					);
 				} else if (msg.type === "FOCUS_CASE" && msg.caseId) {
 					const dbInstance = getDatabase();
-					const targetCase = dbInstance
+					const targetCase = await dbInstance
 						.select()
 						.from(cases)
 						.where(
@@ -158,7 +167,7 @@ export class RealtimeService {
 						return;
 					}
 
-					const membership = dbInstance
+					const membership = await dbInstance
 						.select()
 						.from(workspaceMembers)
 						.where(
