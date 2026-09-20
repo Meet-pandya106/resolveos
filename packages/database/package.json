@@ -9,9 +9,11 @@
     "dev": "tsc -w -p tsconfig.json"
   },
   "dependencies": {
-    "@resolveos/shared": "*"
+    "@resolveos/shared": "*",
+    "pg": "^8.13.0"
   },
   "devDependencies": {
+    "@types/pg": "^8.11.0",
     "typescript": "^5.7.3"
   }
 }

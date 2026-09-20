@@ -16,7 +16,7 @@ import {
 } from '@resolveos/database';
 import { UpdateConsentInputSchema, ExportDataRequestSchema } from '@resolveos/validation';
 import { SecurityCrypto } from '@resolveos/security';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, requireWorkspaceAccess } from '../middleware/auth.js';
 import { AuditService } from '../services/AuditService.js';
 import { ExportImportService } from '../services/ExportImportService.js';
 import crypto from 'crypto';
@@ -95,7 +95,7 @@ export const privacyRoutes: FastifyPluginAsync = async (server: FastifyInstance)
   });
 
   // 4. Export Workspace Cases (JSON / CSV)
-  server.post('/export/:workspaceId', async (request, reply) => {
+  server.post('/export/:workspaceId', { preHandler: [requireWorkspaceAccess(['OWNER', 'ADMIN'])] }, async (request, reply) => {
     try {
       const { workspaceId } = request.params as { workspaceId: string };
       const body = ExportDataRequestSchema.parse(request.body || {});

@@ -2,6 +2,7 @@
  * Case Lifecycle & Problem Resolution Routes
  * Full CRUD for Cases, Problem Statements, Evidence, Hypotheses, 5-Whys/Fishbone,
  * Solutions Matrix, Decisions, Actions Kanban, Verifications, and Retrospectives.
+ * Strictly enforces server-side tenant isolation, IDOR defenses, and transactional integrity.
  */
 
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
@@ -39,10 +40,9 @@ import {
   CreateActionInputSchema,
   UpdateActionInputSchema,
   CreateVerificationInputSchema,
-  UpdateVerificationInputSchema,
   CreateRetrospectiveInputSchema
 } from '@resolveos/validation';
-import { CaseStateMachine, ProblemScorer, SolutionScorer, RetrospectiveGenerator } from '@resolveos/domain';
+import { CaseStateMachine, ProblemScorer, SolutionScorer } from '@resolveos/domain';
 import { authenticate, requireWorkspaceAccess } from '../middleware/auth.js';
 import { RealtimeService } from '../services/RealtimeService.js';
 import crypto from 'crypto';
@@ -65,10 +65,19 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       .run();
   }
 
+  // Security Helper: Strictly verifies that the case exists, belongs to the specified workspace, and is not soft-deleted
+  function getAuthorizedCase(workspaceId: string, caseId: string) {
+    const db = getDatabase();
+    return db
+      .select()
+      .from(cases)
+      .where(and(eq(cases.id, caseId), eq(cases.workspaceId, workspaceId), eq(cases.deletedAt, null as any)))
+      .get();
+  }
+
   // 1. List Cases in Workspace
   server.get('/:workspaceId/cases', { preHandler: [requireWorkspaceAccess()] }, async (request, reply) => {
     const { workspaceId } = request.params as { workspaceId: string };
-    const query = request.query as any;
     const db = getDatabase();
 
     const caseList = db
@@ -143,16 +152,10 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
   // 3. Get Single Case Details with Aggregate Overview
   server.get('/:workspaceId/cases/:caseId', { preHandler: [requireWorkspaceAccess()] }, async (request, reply) => {
     const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
-    const db = getDatabase();
-
-    const caseItem = db
-      .select()
-      .from(cases)
-      .where(and(eq(cases.id, caseId), eq(cases.workspaceId, workspaceId), eq(cases.deletedAt, null as any)))
-      .get();
+    const caseItem = getAuthorizedCase(workspaceId, caseId);
 
     if (!caseItem) {
-      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found', requestId: request.id });
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
     }
 
     const problemScore = ProblemScorer.calculateScore(caseItem.problemStatement as any);
@@ -163,14 +166,16 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     });
   });
 
-  // 4. Update Case / State Transition
+  // 4. Update Case / State Transition (with Transactional Integrity)
   server.patch('/:workspaceId/cases/:caseId', { preHandler: [requireWorkspaceAccess(['OWNER', 'ADMIN', 'MEMBER'])] }, async (request, reply) => {
     const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    const existing = getAuthorizedCase(workspaceId, caseId);
+    if (!existing) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
+
     const body = UpdateCaseInputSchema.parse(request.body);
     const db = getDatabase();
-
-    const existing = db.select().from(cases).where(and(eq(cases.id, caseId), eq(cases.workspaceId, workspaceId))).get();
-    if (!existing) return reply.status(404).send({ error: 'Case not found' });
 
     // Optimistic concurrency check
     if (body.expectedVersion && body.expectedVersion !== existing.version) {
@@ -182,14 +187,17 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       });
     }
 
-    // State transition validation
+    // State transition validation & verification gate check
     if (body.status && body.status !== existing.status) {
       const verificationsList = db.select().from(verifications).where(eq(verifications.caseId, caseId)).all();
       const hasPassed = verificationsList.some((v: any) => v.status === 'PASSED');
 
+      const isAuthorizedRole = request.workspaceMember?.role === 'OWNER' || request.workspaceMember?.role === 'ADMIN';
+      const hasExplicitOverride = Boolean(body.overrideVerification && body.overrideReason && isAuthorizedRole);
+
       const transitionCheck = CaseStateMachine.validateTransition(existing.status as any, body.status as any, {
         hasVerificationPassed: hasPassed,
-        overridePermission: request.workspaceMember?.role === 'OWNER' || request.workspaceMember?.role === 'ADMIN'
+        overridePermission: hasExplicitOverride
       });
 
       if (!transitionCheck.valid) {
@@ -200,6 +208,10 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
           requestId: request.id
         });
       }
+
+      if (!hasPassed && hasExplicitOverride) {
+        recordActivity(caseId, request.user!.id, 'VERIFICATION_OVERRIDDEN', { reason: body.overrideReason });
+      }
     }
 
     const now = new Date().toISOString();
@@ -209,33 +221,48 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       problemStmt = { ...(problemStmt as any), completenessScore: score.score };
     }
 
-    db.update(cases)
-      .set({
-        title: body.title !== undefined ? body.title : existing.title,
-        description: body.description !== undefined ? body.description : existing.description,
-        status: body.status !== undefined ? body.status : existing.status,
-        severity: body.severity !== undefined ? body.severity : existing.severity,
-        priority: body.priority !== undefined ? body.priority : existing.priority,
-        incidentMode: body.incidentMode !== undefined ? body.incidentMode : existing.incidentMode,
-        problemStatement: problemStmt as any,
-        version: existing.version + 1,
-        resolvedAt: body.status === 'RESOLVED' ? now : existing.resolvedAt,
-        updatedAt: now
-      })
-      .where(eq(cases.id, caseId))
-      .run();
+    // Execute atomic update within transaction
+    await db.transaction(async (tx) => {
+      tx.update(cases)
+        .set({
+          title: body.title !== undefined ? body.title : existing.title,
+          description: body.description !== undefined ? body.description : existing.description,
+          status: body.status !== undefined ? body.status : existing.status,
+          severity: body.severity !== undefined ? body.severity : existing.severity,
+          priority: body.priority !== undefined ? body.priority : existing.priority,
+          incidentMode: body.incidentMode !== undefined ? body.incidentMode : existing.incidentMode,
+          problemStatement: problemStmt as any,
+          version: existing.version + 1,
+          resolvedAt: body.status === 'RESOLVED' ? now : existing.resolvedAt,
+          updatedAt: now
+        })
+        .where(eq(cases.id, caseId))
+        .run();
 
-    if (body.status && body.status !== existing.status) {
-      recordActivity(caseId, request.user!.id, 'CASE_STATUS_CHANGED', { from: existing.status, to: body.status });
-    }
+      if (body.status && body.status !== existing.status) {
+        tx.insert(caseActivities)
+          .values({
+            id: crypto.randomUUID(),
+            caseId,
+            userId: request.user!.id,
+            eventType: 'CASE_STATUS_CHANGED',
+            details: { from: existing.status, to: body.status },
+            createdAt: now
+          })
+          .run();
+      }
+    });
 
     RealtimeService.broadcastToCase(caseId, 'CASE_UPDATED', { caseId, updates: body });
     return reply.send({ message: 'Case updated successfully', version: existing.version + 1 });
   });
 
-  // 5. Evidence Routes
+  // 5. Evidence Routes (IDOR Protected + Idempotency Supported)
   server.get('/:workspaceId/cases/:caseId/evidence', { preHandler: [requireWorkspaceAccess()] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const db = getDatabase();
     const list = db.select().from(caseEvidence).where(eq(caseEvidence.caseId, caseId)).all();
     return reply.send(list);
@@ -243,8 +270,26 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
   server.post('/:workspaceId/cases/:caseId/evidence', { preHandler: [requireWorkspaceAccess(['OWNER', 'ADMIN', 'MEMBER'])] }, async (request, reply) => {
     const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
+
+    const idempotencyKey = (request.headers['idempotency-key'] as string) || undefined;
     const body = CreateEvidenceInputSchema.parse(request.body);
     const db = getDatabase();
+
+    // Idempotent deduplication check
+    if (idempotencyKey) {
+      const existing = db
+        .select()
+        .from(caseEvidence)
+        .where(and(eq(caseEvidence.caseId, caseId), eq(caseEvidence.title, body.title)))
+        .get();
+      if (existing) {
+        return reply.status(200).send({ id: existing.id, message: 'Evidence already recorded (idempotent)', idempotent: true });
+      }
+    }
+
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
@@ -275,16 +320,22 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     return reply.status(201).send({ id, message: 'Evidence recorded successfully' });
   });
 
-  // 6. Evidence Relationships
+  // 6. Evidence Relationships (IDOR Protected)
   server.get('/:workspaceId/cases/:caseId/relationships', { preHandler: [requireWorkspaceAccess()] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const db = getDatabase();
     const list = db.select().from(evidenceRelationships).where(eq(evidenceRelationships.caseId, caseId)).all();
     return reply.send(list);
   });
 
   server.post('/:workspaceId/cases/:caseId/relationships', { preHandler: [requireWorkspaceAccess(['OWNER', 'ADMIN', 'MEMBER'])] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const body = CreateRelationshipInputSchema.parse(request.body);
     const db = getDatabase();
     const id = crypto.randomUUID();
@@ -306,16 +357,22 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     return reply.status(201).send({ id, message: 'Relationship established' });
   });
 
-  // 7. Questions
+  // 7. Questions (IDOR Protected)
   server.get('/:workspaceId/cases/:caseId/questions', { preHandler: [requireWorkspaceAccess()] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const db = getDatabase();
     const list = db.select().from(caseQuestions).where(eq(caseQuestions.caseId, caseId)).all();
     return reply.send(list);
   });
 
   server.post('/:workspaceId/cases/:caseId/questions', { preHandler: [requireWorkspaceAccess(['OWNER', 'ADMIN', 'MEMBER'])] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const body = CreateQuestionInputSchema.parse(request.body);
     const db = getDatabase();
     const id = crypto.randomUUID();
@@ -339,7 +396,10 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
   });
 
   server.patch('/:workspaceId/cases/:caseId/questions/:questionId', { preHandler: [requireWorkspaceAccess(['OWNER', 'ADMIN', 'MEMBER'])] }, async (request, reply) => {
-    const { questionId, caseId } = request.params as { questionId: string; caseId: string };
+    const { workspaceId, caseId, questionId } = request.params as { workspaceId: string; caseId: string; questionId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const body = AnswerQuestionInputSchema.parse(request.body);
     const db = getDatabase();
 
@@ -357,16 +417,22 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     return reply.send({ message: 'Question answered' });
   });
 
-  // 8. Hypotheses
+  // 8. Hypotheses (IDOR Protected)
   server.get('/:workspaceId/cases/:caseId/hypotheses', { preHandler: [requireWorkspaceAccess()] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const db = getDatabase();
     const list = db.select().from(hypotheses).where(eq(hypotheses.caseId, caseId)).all();
     return reply.send(list);
   });
 
   server.post('/:workspaceId/cases/:caseId/hypotheses', { preHandler: [requireWorkspaceAccess(['OWNER', 'ADMIN', 'MEMBER'])] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const body = CreateHypothesisInputSchema.parse(request.body);
     const db = getDatabase();
     const id = crypto.randomUUID();
@@ -391,7 +457,10 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
   });
 
   server.patch('/:workspaceId/cases/:caseId/hypotheses/:hypothesisId', { preHandler: [requireWorkspaceAccess(['OWNER', 'ADMIN', 'MEMBER'])] }, async (request, reply) => {
-    const { hypothesisId, caseId } = request.params as { hypothesisId: string; caseId: string };
+    const { workspaceId, caseId, hypothesisId } = request.params as { workspaceId: string; caseId: string; hypothesisId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const body = UpdateHypothesisInputSchema.parse(request.body);
     const db = getDatabase();
 
@@ -409,16 +478,22 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     return reply.send({ message: 'Hypothesis updated' });
   });
 
-  // 9. Root Causes (5-Whys / Fishbone)
+  // 9. Root Causes (IDOR Protected)
   server.get('/:workspaceId/cases/:caseId/root-causes', { preHandler: [requireWorkspaceAccess()] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const db = getDatabase();
     const list = db.select().from(rootCauses).where(eq(rootCauses.caseId, caseId)).all();
     return reply.send(list);
   });
 
   server.post('/:workspaceId/cases/:caseId/root-causes', { preHandler: [requireWorkspaceAccess(['OWNER', 'ADMIN', 'MEMBER'])] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const body = CreateRootCauseInputSchema.parse(request.body);
     const db = getDatabase();
     const id = crypto.randomUUID();
@@ -444,9 +519,12 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     return reply.status(201).send({ id, message: 'Root cause record saved' });
   });
 
-  // 10. Solutions Matrix
+  // 10. Solutions Matrix (IDOR Protected)
   server.get('/:workspaceId/cases/:caseId/solutions', { preHandler: [requireWorkspaceAccess()] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const db = getDatabase();
     const list = db.select().from(solutions).where(eq(solutions.caseId, caseId)).all();
     const ranked = SolutionScorer.rankSolutions(list as any);
@@ -454,7 +532,10 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
   });
 
   server.post('/:workspaceId/cases/:caseId/solutions', { preHandler: [requireWorkspaceAccess(['OWNER', 'ADMIN', 'MEMBER'])] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const body = CreateSolutionInputSchema.parse(request.body);
     const db = getDatabase();
     const id = crypto.randomUUID();
@@ -484,16 +565,22 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     return reply.status(201).send({ id, message: 'Solution proposed' });
   });
 
-  // 11. Decisions Log
+  // 11. Decisions Log (IDOR Protected)
   server.get('/:workspaceId/cases/:caseId/decisions', { preHandler: [requireWorkspaceAccess()] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const db = getDatabase();
     const list = db.select().from(decisions).where(eq(decisions.caseId, caseId)).orderBy(desc(decisions.revision)).all();
     return reply.send(list);
   });
 
   server.post('/:workspaceId/cases/:caseId/decisions', { preHandler: [requireWorkspaceAccess(['OWNER', 'ADMIN', 'MEMBER'])] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const body = CreateDecisionInputSchema.parse(request.body);
     const db = getDatabase();
 
@@ -518,7 +605,6 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       })
       .run();
 
-    // Mark solution as chosen
     if (body.chosenSolutionId) {
       db.update(solutions).set({ isChosen: true }).where(eq(solutions.id, body.chosenSolutionId)).run();
     }
@@ -527,16 +613,22 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     return reply.status(201).send({ id, revision: nextRevision, message: 'Decision logged' });
   });
 
-  // 12. Actions
+  // 12. Actions (IDOR Protected)
   server.get('/:workspaceId/cases/:caseId/actions', { preHandler: [requireWorkspaceAccess()] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const db = getDatabase();
     const list = db.select().from(caseActions).where(eq(caseActions.caseId, caseId)).all();
     return reply.send(list);
   });
 
   server.post('/:workspaceId/cases/:caseId/actions', { preHandler: [requireWorkspaceAccess(['OWNER', 'ADMIN', 'MEMBER'])] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const body = CreateActionInputSchema.parse(request.body);
     const db = getDatabase();
     const id = crypto.randomUUID();
@@ -564,7 +656,10 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
   });
 
   server.patch('/:workspaceId/cases/:caseId/actions/:actionId', { preHandler: [requireWorkspaceAccess(['OWNER', 'ADMIN', 'MEMBER'])] }, async (request, reply) => {
-    const { actionId, caseId } = request.params as { actionId: string; caseId: string };
+    const { workspaceId, caseId, actionId } = request.params as { workspaceId: string; caseId: string; actionId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const body = UpdateActionInputSchema.parse(request.body);
     const db = getDatabase();
 
@@ -584,16 +679,22 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     return reply.send({ message: 'Action updated' });
   });
 
-  // 13. Verifications
+  // 13. Verifications (IDOR Protected)
   server.get('/:workspaceId/cases/:caseId/verifications', { preHandler: [requireWorkspaceAccess()] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const db = getDatabase();
     const list = db.select().from(verifications).where(eq(verifications.caseId, caseId)).all();
     return reply.send(list);
   });
 
   server.post('/:workspaceId/cases/:caseId/verifications', { preHandler: [requireWorkspaceAccess(['OWNER', 'ADMIN', 'MEMBER'])] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const body = CreateVerificationInputSchema.parse(request.body);
     const db = getDatabase();
     const id = crypto.randomUUID();
@@ -620,16 +721,22 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     return reply.status(201).send({ id, message: 'Verification record initialized' });
   });
 
-  // 14. Retrospectives
+  // 14. Retrospectives (IDOR Protected)
   server.get('/:workspaceId/cases/:caseId/retrospective', { preHandler: [requireWorkspaceAccess()] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const db = getDatabase();
     const retro = db.select().from(retrospectives).where(eq(retrospectives.caseId, caseId)).get();
     return reply.send(retro || null);
   });
 
   server.post('/:workspaceId/cases/:caseId/retrospective', { preHandler: [requireWorkspaceAccess(['OWNER', 'ADMIN', 'MEMBER'])] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const body = CreateRetrospectiveInputSchema.parse(request.body);
     const db = getDatabase();
 
@@ -662,9 +769,12 @@ export const caseRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     return reply.status(201).send({ id, message: 'Retrospective published' });
   });
 
-  // 15. Activities Timeline
+  // 15. Activities Timeline (IDOR Protected)
   server.get('/:workspaceId/cases/:caseId/activities', { preHandler: [requireWorkspaceAccess()] }, async (request, reply) => {
-    const { caseId } = request.params as { caseId: string };
+    const { workspaceId, caseId } = request.params as { workspaceId: string; caseId: string };
+    if (!getAuthorizedCase(workspaceId, caseId)) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
     const db = getDatabase();
     const list = db
       .select({

@@ -26,14 +26,17 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Typecheck
+      - name: TypeScript Typecheck
         run: npm run typecheck
 
-      - name: Run Test Suite (Unit, Integration & Security Regression)
+      - name: Test Suite (Unit, Integration, Security, E2E)
         run: npm test
 
-      - name: Production Build
+      - name: Production Monorepo Build
         run: npm run build
 
-      - name: Security & Hygiene Audit
+      - name: Master Production Readiness Verification
+        run: node scripts/production-readiness-check.cjs
+
+      - name: Package Hygiene & Secrets Audit
         run: node scripts/prepublish-security-check.cjs

@@ -292,10 +292,18 @@ export class SolutionScorer {
 // 5. Offline Sync Conflict Resolver
 // =========================================================================
 
+export interface ConflictDetail {
+  field: string;
+  baseValue: any;
+  localValue: any;
+  remoteValue: any;
+}
+
 export interface MergeResult<T> {
   merged: T;
   hasConflicts: boolean;
   conflictingFields: string[];
+  conflicts: ConflictDetail[];
 }
 
 export class ConflictResolver {
@@ -305,6 +313,7 @@ export class ConflictResolver {
   static mergeEntities<T extends Record<string, any>>(base: T, local: T, remote: T): MergeResult<T> {
     const merged: Record<string, any> = { ...base };
     const conflictingFields: string[] = [];
+    const conflicts: ConflictDetail[] = [];
     const allKeys = Array.from(new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)]));
 
     for (const key of allKeys) {
@@ -328,6 +337,12 @@ export class ConflictResolver {
         } else {
           // Genuine conflict
           conflictingFields.push(key);
+          conflicts.push({
+            field: key,
+            baseValue: baseVal,
+            localValue: localVal,
+            remoteValue: remoteVal
+          });
           // Default: preserve remote on server side until manual review
           merged[key] = remoteVal;
         }
@@ -337,8 +352,13 @@ export class ConflictResolver {
     return {
       merged: merged as T,
       hasConflicts: conflictingFields.length > 0,
-      conflictingFields
+      conflictingFields,
+      conflicts
     };
+  }
+
+  static merge3Way<T extends Record<string, any>>(base: T, local: T, remote: T): MergeResult<T> {
+    return this.mergeEntities(base, local, remote);
   }
 }
 

@@ -27,7 +27,8 @@ export type RegisterInput = z.infer<typeof RegisterInputSchema>;
 export const LoginInputSchema = z.object({
   email: z.string().email('Invalid email address').max(255),
   password: z.string().min(1, 'Password is required').max(128),
-  totpCode: z.string().length(6).optional()
+  totpCode: z.string().length(6).optional(),
+  recoveryCode: z.string().optional()
 });
 
 export type LoginInput = z.infer<typeof LoginInputSchema>;
@@ -50,6 +51,16 @@ export const ChangePasswordInputSchema = z.object({
 });
 
 export const TOTPVerifyInputSchema = z.object({
+  code: z.string().length(6, 'TOTP code must be 6 digits')
+});
+
+export const TOTPEnableInputSchema = z.object({
+  secret: z.string().min(16),
+  code: z.string().length(6, 'TOTP code must be 6 digits')
+});
+
+export const TOTPDisableInputSchema = z.object({
+  password: z.string().min(1),
   code: z.string().length(6, 'TOTP code must be 6 digits')
 });
 
@@ -143,6 +154,8 @@ export const UpdateCaseInputSchema = z.object({
   ownerId: z.string().uuid().optional(),
   incidentMode: z.boolean().optional(),
   expectedVersion: z.number().int().optional(), // Optimistic concurrency check
+  overrideVerification: z.boolean().optional(),
+  overrideReason: z.string().min(5).max(1000).optional(),
   problemStatement: ProblemStatementSchema.optional()
 });
 

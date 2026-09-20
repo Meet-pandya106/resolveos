@@ -1,11 +1,18 @@
 /**
  * Authentication & Session Management Routes
+ * Includes password hashing, RFC 6238 TOTP 2FA enrollment, recovery codes,
+ * and comprehensive session revocation.
  */
 
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { getDatabase, users, userSessions, workspaces, workspaceMembers, eq, and } from '@resolveos/database';
 import { SecurityCrypto, TOTPService } from '@resolveos/security';
-import { RegisterInputSchema, LoginInputSchema, ChangePasswordInputSchema, TOTPVerifyInputSchema } from '@resolveos/validation';
+import {
+  RegisterInputSchema,
+  LoginInputSchema,
+  TOTPEnableInputSchema,
+  TOTPDisableInputSchema
+} from '@resolveos/validation';
 import { AuditService } from '../services/AuditService.js';
 import { authenticate } from '../middleware/auth.js';
 import crypto from 'crypto';
@@ -105,7 +112,7 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     });
   });
 
-  // 2. User Login
+  // 2. User Login (Supports Password, TOTP, and Single-Use Recovery Codes)
   server.post('/login', async (request, reply) => {
     const body = LoginInputSchema.parse(request.body);
     const db = getDatabase();
@@ -124,13 +131,38 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
     // 2FA Verification check if enabled
     if (user.twoFactorEnabled && user.twoFactorSecret) {
-      if (!body.totpCode) {
+      if (body.recoveryCode) {
+        // Handle single-use recovery code
+        let validCodes: string[] = [];
+        if (Array.isArray(user.recoveryCodes)) {
+          validCodes = [...user.recoveryCodes];
+        } else if (typeof user.recoveryCodes === 'string') {
+          try {
+            validCodes = JSON.parse(user.recoveryCodes);
+          } catch {
+            validCodes = [];
+          }
+        }
+
+        const normalizedInput = body.recoveryCode.trim().toUpperCase();
+        const codeIndex = validCodes.indexOf(normalizedInput);
+        if (codeIndex === -1) {
+          AuditService.log('FAILED_LOGIN', { req: request, userId: user.id, details: { reason: 'Invalid recovery code' } });
+          return reply.status(401).send({ statusCode: 401, error: 'Unauthorized', message: 'Invalid recovery code.', requestId: request.id });
+        }
+
+        // Consume and burn the single-use recovery code
+        validCodes.splice(codeIndex, 1);
+        db.update(users).set({ recoveryCodes: validCodes }).where(eq(users.id, user.id)).run();
+        AuditService.log('LOGIN', { req: request, userId: user.id, details: { method: 'recovery_code' } });
+      } else if (body.totpCode) {
+        const validCode = TOTPService.verifyCode(user.twoFactorSecret, body.totpCode);
+        if (!validCode) {
+          AuditService.log('FAILED_LOGIN', { req: request, userId: user.id, details: { reason: 'Invalid 2FA TOTP code' } });
+          return reply.status(401).send({ statusCode: 401, error: 'Unauthorized', message: 'Invalid two-factor authentication code.', requestId: request.id });
+        }
+      } else {
         return reply.status(200).send({ requires2FA: true, userId: user.id });
-      }
-      const validCode = TOTPService.verifyCode(user.twoFactorSecret, body.totpCode);
-      if (!validCode) {
-        AuditService.log('FAILED_LOGIN', { req: request, userId: user.id, details: { reason: 'Invalid 2FA TOTP code' } });
-        return reply.status(401).send({ statusCode: 401, error: 'Unauthorized', message: 'Invalid two-factor authentication code.', requestId: request.id });
       }
     }
 
@@ -152,7 +184,7 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
       .run();
 
     const token = (server as any).jwt.sign({ id: user.id, email: user.email, sessionId });
-    AuditService.log('LOGIN', { req: request, userId: user.id, details: { method: 'password' } });
+    AuditService.log('LOGIN', { req: request, userId: user.id, details: { method: body.recoveryCode ? 'recovery_code' : (body.totpCode ? '2fa_totp' : 'password') } });
 
     reply.setCookie('token', token, {
       path: '/',
@@ -209,7 +241,16 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     return reply.send({ message: 'Successfully logged out.' });
   });
 
-  // 5. Active Sessions List
+  // 5. Logout Everywhere (Revoke All User Sessions)
+  server.post('/logout-all', { preHandler: [authenticate] }, async (request, reply) => {
+    const db = getDatabase();
+    db.update(userSessions).set({ isRevoked: true }).where(eq(userSessions.userId, request.user!.id)).run();
+    AuditService.log('SESSION_REVOKED', { req: request, userId: request.user!.id, details: { scope: 'ALL_SESSIONS' } });
+    reply.clearCookie('token', { path: '/' });
+    return reply.send({ message: 'All active sessions successfully revoked across all devices.' });
+  });
+
+  // 6. Active Sessions List
   server.get('/sessions', { preHandler: [authenticate] }, async (request, reply) => {
     const db = getDatabase();
     const sessions = db
@@ -221,7 +262,7 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
     return reply.send(sessions.map((s: any) => ({ ...s, isCurrent: s.id === request.user!.sessionId })));
   });
 
-  // 6. Revoke Specific Session
+  // 7. Revoke Specific Session
   server.delete('/sessions/:id', { preHandler: [authenticate] }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const db = getDatabase();
@@ -232,5 +273,74 @@ export const authRoutes: FastifyPluginAsync = async (server: FastifyInstance) =>
 
     AuditService.log('SESSION_REVOKED', { req: request, userId: request.user!.id, details: { revokedSessionId: id } });
     return reply.send({ message: 'Session successfully revoked.' });
+  });
+
+  // 8. 2FA Setup (Generate Secret & Provisioning URI)
+  server.post('/2fa/setup', { preHandler: [authenticate] }, async (request, reply) => {
+    const secret = TOTPService.generateSecret();
+    const otpAuthUri = TOTPService.getOtpAuthUri(request.user!.email, secret, 'ResolveOS');
+    return reply.send({ secret, otpAuthUri });
+  });
+
+  // 9. 2FA Enable (Verify Initial Code, Generate Recovery Codes, and Activate)
+  server.post('/2fa/enable', { preHandler: [authenticate] }, async (request, reply) => {
+    const body = TOTPEnableInputSchema.parse(request.body);
+    const db = getDatabase();
+
+    const validCode = TOTPService.verifyCode(body.secret, body.code);
+    if (!validCode) {
+      return reply.status(400).send({ statusCode: 400, error: 'Bad Request', message: 'Invalid TOTP verification code. Please check your authenticator clock and try again.' });
+    }
+
+    const recoveryCodes = TOTPService.generateRecoveryCodes(8);
+    db.update(users)
+      .set({
+        twoFactorEnabled: true,
+        twoFactorSecret: body.secret,
+        recoveryCodes,
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(users.id, request.user!.id))
+      .run();
+
+    AuditService.log('TWO_FACTOR_ENABLED', { req: request, userId: request.user!.id });
+    return reply.send({
+      message: 'Two-factor authentication successfully enabled.',
+      recoveryCodes
+    });
+  });
+
+  // 10. 2FA Disable (Requires Password and Current TOTP Confirmation)
+  server.post('/2fa/disable', { preHandler: [authenticate] }, async (request, reply) => {
+    const body = TOTPDisableInputSchema.parse(request.body);
+    const db = getDatabase();
+
+    const user = db.select().from(users).where(eq(users.id, request.user!.id)).get();
+    if (!user || !user.twoFactorEnabled) {
+      return reply.status(400).send({ error: 'Two-factor authentication is not currently active.' });
+    }
+
+    const validPassword = await SecurityCrypto.verifyPassword(body.password, user.passwordHash);
+    if (!validPassword) {
+      return reply.status(401).send({ error: 'Incorrect password.' });
+    }
+
+    const validCode = TOTPService.verifyCode(user.twoFactorSecret, body.code);
+    if (!validCode) {
+      return reply.status(400).send({ error: 'Invalid two-factor authentication code.' });
+    }
+
+    db.update(users)
+      .set({
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+        recoveryCodes: null,
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(users.id, user.id))
+      .run();
+
+    AuditService.log('TWO_FACTOR_DISABLED', { req: request, userId: user.id });
+    return reply.send({ message: 'Two-factor authentication successfully disabled.' });
   });
 };

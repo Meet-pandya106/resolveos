@@ -19,6 +19,7 @@ import { caseRoutes } from './routes/cases.js';
 import { searchRoutes } from './routes/search.js';
 import { privacyRoutes } from './routes/privacy.js';
 import { aiRoutes } from './routes/ai.js';
+import { syncRoutes } from './routes/sync.js';
 import { RealtimeService } from './services/RealtimeService.js';
 
 dotenv.config();
@@ -111,9 +112,13 @@ server.register(async function (fastify) {
   fastify.get('/ws', { websocket: true }, async (connection, req) => {
     try {
       const url = new URL(req.url || '', 'http://localhost');
-      let token = url.searchParams.get('token');
-      if (!token && (req as any).cookies?.token) {
-        token = (req as any).cookies.token;
+      // Prioritize HttpOnly cookie or Sec-WebSocket-Protocol header over URL search parameter
+      let token = (req as any).cookies?.token;
+      if (!token && req.headers['sec-websocket-protocol']) {
+        token = req.headers['sec-websocket-protocol'];
+      }
+      if (!token && process.env.NODE_ENV !== 'production') {
+        token = url.searchParams.get('token') || undefined;
       }
 
       if (!token) {
@@ -137,6 +142,7 @@ await server.register(caseRoutes, { prefix: '/api/workspaces' });
 await server.register(searchRoutes, { prefix: '/api/search' });
 await server.register(privacyRoutes, { prefix: '/api/privacy' });
 await server.register(aiRoutes, { prefix: '/api/ai' });
+await server.register(syncRoutes, { prefix: '/api/workspaces' });
 
 // 7. Health & Readiness Observability Endpoints
 server.get('/health', async (request, reply) => {

@@ -10,8 +10,9 @@ A privacy-first, local-first Problem Resolution Operating System for engineering
 [![Fastify](https://img.shields.io/badge/Fastify-5.2-black?logo=fastify)](https://fastify.dev/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react)](https://react.dev/)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
-[![Vitest](https://img.shields.io/badge/Tests-33%20Passed-brightgreen)](https://vitest.dev/)
-[![License](https://img.shields.io/badge/License-MIT-purple)](#)
+[![Vitest](https://img.shields.io/badge/Tests-84%20Passed-brightgreen)](https://vitest.dev/)
+[![Security](https://img.shields.io/badge/Security-Hardened-success)](./docs/SECURITY.md)
+[![License](https://img.shields.io/badge/License-MIT-purple)](./LICENSE)
 
 </div>
 
@@ -57,8 +58,8 @@ ResolveOS is engineered for organizations and teams that cannot afford ambiguous
 
 | Persona / Role | Core Pain Points Solved by ResolveOS | Primary Capabilities Used |
 | :--- | :--- | :--- |
-| **Site Reliability Engineers (SREs) & Incident Commanders** | Chaotic Slack war-rooms during Sev-1 outages; untracked investigative leads; premature case closure without empirical proof. | • Real-Time Incident Command Radar<br>• Enforced Verification Invariant (Blocked without PASSED test)<br>• Automated Retrospective Synthesis |
-| **Security Operations & Incident Responders (SecOps / DFIR)** | Leaking credentials, tokens, and PII in ticket trackers; legal challenges to digital chain-of-custody during breach investigations. | • Automated Server-Side PII/Secret Redactor (`DataRedactor`)<br>• Tamper-Evident Audit Trails (FRE 902 / ISO 27037)<br>• SSRFGuard & scrypt Cryptography |
+| **Site Reliability Engineers (SREs) & Incident Commanders** | Chaotic Slack war-rooms during Sev-1 outages; untracked investigative leads; premature case closure without empirical proof. | • Real-Time Incident Command Radar<br>• Enforced Verification Invariant (Blocked without PASSED test or signed Owner override)<br>• Automated Retrospective Synthesis |
+| **Security Operations & Incident Responders (SecOps / DFIR)** | Leaking credentials, tokens, and PII in ticket trackers; legal challenges to digital chain-of-custody during breach investigations. | • Automated Server-Side PII/Secret Redactor (`DataRedactor`)<br>• Tamper-Evident SHA-256 Audit Trails (FRE 902 / ISO 27037)<br>• SSRFGuard (IPv4/IPv6 ULA + DNS Rebinding Protection) |
 | **Software Architects & Engineering Leads** | Flaky distributed bugs; recurring architectural regressions; lost rationale when developers depart. | • 12-Stage Scientific Resolution Lifecycle<br>• Recursive 5-Whys Causality Chains & Ishikawa Diagrams<br>• Immutable Architectural Decision Records (ADRs) |
 | **Platform & Infrastructure Engineers** | Hard-to-reproduce memory leaks, network partition anomalies, and multi-component dependency deadlocks. | • Multi-Criteria Weighted Solution Matrix (Cost, Effort, Risk, Impact, Time)<br>• WebGL 2.0 3D Relational Problem Graph<br>• Offline Mutation Queue with 3-Way Differential Merge |
 | **Compliance, CISOs & Data Protection Officers (DPOs)** | Multi-jurisdictional privacy audits (GDPR, CCPA, DPDP); unvetted third-party telemetry; lack of auditability for regulators. | • Zero-Telemetry Architecture (No tracking beacons)<br>• 1-Click JSON/CSV Data Portability<br>• Right to Erasure / Automated Personal Data Anonymization |
@@ -100,29 +101,31 @@ ResolveOS is engineered for organizations and teams that cannot afford ambiguous
 - **Root Cause Analysis Suite**: Recursive **5-Whys** causality chains and **Ishikawa Fishbone** categorical diagrams.
 - **Multi-Criteria Solution Matrix**: Normalizes Cost, Effort, Risk, Impact, and Time-to-implement to calculate weighted viability scores.
 - **Immutable Decision Log**: Records architectural decisions with context, chosen solution, assumptions, and revision history.
-- **Verification Engine**: Prevents premature case resolution by enforcing measurable `PASSED` acceptance criteria before allowing transition to `RESOLVED`.
+- **Verification Engine**: Prevents premature case resolution by enforcing measurable `PASSED` acceptance criteria before allowing transition to `RESOLVED` (requires explicit Owner override reason otherwise).
 
 ### ⚡ Offline-First Architecture & Real-time Collaboration
 - **Offline Mutation Queue**: Seamlessly queue updates in IndexedDB / local storage during network interruptions.
 - **3-Way Conflict Detector**: Intelligent field-level diffing when synchronizing local offline edits with the cloud.
-- **Real-Time WebSockets**: Instant live updates across team members collaborating on the same case.
+- **Real-Time WebSockets**: Instant live updates across team members collaborating on the same case with workspace authorization and 16KB frame limit.
 - **Interactive 3D Case Network**: Three.js WebGL visualizer rendering interconnected problem nodes, evidence links, and action chains.
 
 ### 🔒 Enterprise Security & Governance
 - **Password Hashing**: Cryptographically secure `scrypt` hashing with 16-byte unique salts and constant-time comparison.
 - **Session Governance**: Device session tracking with one-click remote session revocation.
-- **Two-Factor Authentication (2FA)**: RFC 6238 compliant TOTP generator with single-use recovery codes.
-- **SSRF Defense Guard**: Blocks private IPv4/IPv6 ranges, link-local addresses, and cloud instance metadata endpoints (`169.254.169.254`).
-- **IDOR / Tenant Isolation**: Strict server-side workspace authorization and object-level permission verification.
-- **Security Audit Trail**: Immutable logging of logins, role updates, session revocations, and data exports.
+- **Two-Factor Authentication (2FA)**: RFC 6238 compliant TOTP generator with sliding-window replay protection and single-use burn-on-use recovery codes.
+- **SSRF Defense Guard**: Blocks private IPv4/IPv6 ranges, link-local addresses, IPv6 ULA (`fc00::/7`), and cloud instance metadata (`169.254.169.254`) with DNS rebinding protection.
+- **IDOR / Tenant Isolation**: Strict server-side workspace authorization across all 26 case sub-resource endpoints.
+- **Tamper-Evident SHA-256 Audit Trail**: Cryptographically chained activity logging for all security events.
+- **Dual Database Architecture**: Canonical PostgreSQL engine with connection pooling and migrations for production; ultra-fast in-memory engine for unit testing.
 
 ---
 
 ## 🚀 Quick Start & Installation
 
 ### Prerequisites
-- Node.js 18+ (tested on Node v20, v22, v24)
+- Node.js 20+ (tested on Node v20, v22)
 - npm 9+
+- Optional: PostgreSQL 14+ (for production mode)
 
 ### 1. Clone & Install
 ```bash
@@ -171,7 +174,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## 🧪 Testing & Verification
 
-ResolveOS comes with a comprehensive test suite covering domain logic, cryptographic security, IDOR regression, and end-to-end API flows:
+ResolveOS includes 84 automated tests across 16 suites covering domain logic, cryptographic security, IDOR regression, concurrency, and end-to-end API flows:
 
 ```bash
 # Run all Vitest suites
@@ -180,8 +183,11 @@ npm test
 # Run unit tests only
 npm run test:unit
 
-# Run security regression tests (IDOR, Role Escalation, SQLi, State Machine)
+# Run security regression tests (IDOR, Role Escalation, SSRF, TOTP, WebSocket)
 npm run test:security
+
+# Run production readiness acceptance checks
+npm run readiness:check
 ```
 
 ---
@@ -194,30 +200,36 @@ resolveos/
 │   ├── shared/       # Domain models, enums, DTOs, API event schemas
 │   ├── domain/       # Case state machine, Problem scoring, 5-Whys, Solution matrix
 │   ├── validation/   # Zod validation schemas for all inputs & exports
-│   ├── security/     # Scrypt crypto, TOTP MFA, PII redaction, SSRF guard
-│   └── database/     # Portable database engine, Drizzle schema, indices
+│   ├── security/     # Scrypt crypto, RFC 6238 TOTP, PII redaction, SSRF guard
+│   └── database/     # Canonical PostgreSQL + in-memory store, DDL migrations, pooling
 ├── apps/
 │   ├── api/          # Fastify backend, REST API, WebSockets, Audit, Export/Import
 │   └── web/          # React 18 SPA, Zustand, TanStack Query, Three.js 3D graph
 ├── tests/
 │   ├── unit/         # Unit tests for domain logic & security primitives
 │   ├── integration/  # End-to-end lifecycle API integration tests
-│   └── security/     # Security regression tests (IDOR, SQLi, Auth bypass)
-└── docs/             # Technical, Security, and Legal Privacy documentation
+│   ├── security/     # Security regression tests (IDOR, SSRF, TOTP, AI injection)
+│   └── e2e/          # 12-Stage resolution lifecycle tests
+└── docs/             # Technical, Security, Disaster Recovery, and Audit documentation
 ```
 
 ---
 
 ## 📄 Documentation Index
 
-- [Architecture Guide (ARCHITECTURE.md)](./docs/ARCHITECTURE.md)
-- [Threat Model & Attack Surface Analysis (THREAT_MODEL.md)](./docs/THREAT_MODEL.md)
+- [Production Architecture Guide (ARCHITECTURE.md)](./docs/ARCHITECTURE.md)
+- [Baseline Production Audit (PRODUCTION_AUDIT.md)](./docs/PRODUCTION_AUDIT.md)
+- [Claims & Verification Matrix (CLAIMS.md)](./docs/CLAIMS.md)
+- [Engineering Change Ledger (CHANGE_LEDGER.md)](./docs/CHANGE_LEDGER.md)
+- [Canonical Database & Migration Guide (DATABASE.md)](./docs/DATABASE.md)
+- [Threat Model & Attack Surface (THREAT_MODEL.md)](./docs/THREAT_MODEL.md)
 - [Security Architecture & Controls (SECURITY.md)](./docs/SECURITY.md)
-- [OWASP ASVS Verification Checklist (SECURITY_CHECKLIST.md)](./docs/SECURITY_CHECKLIST.md)
-- [Privacy Policy & Data Rights (PRIVACY_POLICY.md)](./docs/PRIVACY_POLICY.md)
-- [Data Retention & Deletion Policy (DATA_RETENTION.md)](./docs/DATA_RETENTION.md)
-- [Subprocessors Transparency Table (SUBPROCESSORS.md)](./docs/SUBPROCESSORS.md)
-- [Deployment & Operations Guide (DEPLOYMENT.md)](./docs/DEPLOYMENT.md)
+- [AI Security & Defense-in-Depth (AI_SECURITY.md)](./docs/AI_SECURITY.md)
+- [Disaster Recovery & Business Continuity (DISASTER_RECOVERY.md)](./docs/DISASTER_RECOVERY.md)
+- [Deployment Runbook (DEPLOYMENT.md)](./docs/DEPLOYMENT.md)
+- [Operations & Observability Runbook (OPERATIONS.md)](./docs/OPERATIONS.md)
+- [Privacy Policy & Data Rights (PRIVACY.md)](./docs/PRIVACY.md)
+- [Testing & Quality Assurance Guide (TESTING.md)](./docs/TESTING.md)
 
 ---
 

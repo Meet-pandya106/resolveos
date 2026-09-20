@@ -364,7 +364,10 @@ export type AuditAction =
   | 'ACCOUNT_DELETED'
   | 'API_KEY_CREATED'
   | 'API_KEY_REVOKED'
-  | 'PRIVACY_CONSENT_UPDATED';
+  | 'PRIVACY_CONSENT_UPDATED'
+  | 'TWO_FACTOR_ENABLED'
+  | 'TWO_FACTOR_DISABLED'
+  | 'ALL_SESSIONS_REVOKED';
 
 export interface AuditEvent {
   id: string;

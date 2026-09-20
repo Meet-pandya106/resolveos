@@ -49,9 +49,15 @@ export const aiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
       });
     }
 
-    // 3. Load Case Data
-    const caseRecord = db.select().from(cases).where(eq(cases.id, caseId)).get();
-    if (!caseRecord) return reply.status(404).send({ error: 'Case not found' });
+    // 3. Load Case Data scoped to workspace
+    const caseRecord = db
+      .select()
+      .from(cases)
+      .where(and(eq(cases.id, caseId), eq(cases.workspaceId, workspaceId), eq(cases.deletedAt, null as any)))
+      .get();
+    if (!caseRecord) {
+      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: 'Case not found in this workspace.', requestId: request.id });
+    }
 
     const evidenceList = db.select().from(caseEvidence).where(eq(caseEvidence.caseId, caseId)).all();
 

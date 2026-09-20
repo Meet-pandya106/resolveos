@@ -21,10 +21,13 @@
     "lint": "echo 'All packages passed lint checks'",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "db:seed": "tsx apps/api/src/scripts/seed.ts",
-    "prepublish:check": "node scripts/prepublish-security-check.cjs"
+    "prepublish:check": "node scripts/prepublish-security-check.cjs",
+    "audit:verify": "node scripts/resolveos-audit.cjs verify",
+    "readiness:check": "node scripts/production-readiness-check.cjs"
   },
   "devDependencies": {
     "@types/node": "^22.13.9",
+    "@types/pg": "^8.23.1",
     "@types/ws": "^8.18.1",
     "concurrently": "^9.1.2",
     "drizzle-orm": "^0.45.2",
@@ -40,6 +43,7 @@
     "@fastify/rate-limit": "^11.2.0",
     "@fastify/websocket": "^11.3.1",
     "dotenv": "^18.0.1",
-    "fastify": "^5.12.5"
+    "fastify": "^5.12.5",
+    "pg": "^8.23.0"
   }
 }
