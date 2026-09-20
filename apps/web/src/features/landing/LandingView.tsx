@@ -22,7 +22,8 @@ import {
   ChevronRight,
   ExternalLink,
   ShieldAlert,
-  Play
+  Play,
+  Users
 } from 'lucide-react';
 
 export const LandingView: React.FC = () => {
@@ -230,6 +231,7 @@ Client IP: 192.168.1.104 requested password reset for card 4532-8921-9902-1234.`
             <a href="#sandbox" className="hover:text-primary transition-colors">PII Redactor</a>
             <a href="#security" className="hover:text-primary transition-colors">OWASP ASVS Defense</a>
             <a href="#architecture" className="hover:text-primary transition-colors">Tech Architecture</a>
+            <a href="#personas" className="hover:text-primary transition-colors">Who It's For</a>
             <button onClick={() => navigate('/legal')} className="hover:text-primary transition-colors">Legal & Compliance</button>
           </nav>
 
@@ -610,6 +612,126 @@ Client IP: 192.168.1.104 requested password reset for card 4532-8921-9902-1234.`
           <div className="py-3 flex items-center justify-between">
             <span className="text-muted-foreground">Automated Testing & Regression</span>
             <span className="text-emerald-400 font-semibold">Vitest 3.2 (33 / 33 Passing Suites)</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Target Personas Section */}
+      <section id="personas" className="max-w-7xl mx-auto px-6 py-20 border-t border-border/60">
+        <div className="text-center max-w-3xl mx-auto mb-12">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-mono mb-3">
+            <Users className="w-3.5 h-3.5" />
+            <span>WHO IS RESOLVEOS FOR?</span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
+            Built for Mission-Critical Engineering & SecOps
+          </h2>
+          <p className="mt-3 text-xs sm:text-sm text-muted-foreground">
+            Engineered for organizations and teams that cannot afford ambiguous guesswork, lost diagnostic context, or unverified outage conclusions.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          {/* Persona 1: SREs */}
+          <div className="glass-panel rounded-3xl p-6 space-y-4 hover:border-primary/50 transition-all group">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center font-bold">
+              <Zap className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-mono font-bold text-rose-400 uppercase tracking-wider">Incident Response</div>
+              <h3 className="text-base font-bold text-foreground mt-0.5">SREs & Incident Commanders</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Eliminate chaotic Slack war-rooms during Sev-1 outages. Enforce real-time lead tracking, telemetry delta quantification, and the verification invariant before declaring recovery.
+            </p>
+            <div className="pt-2 border-t border-border/60 text-[11px] font-mono text-primary flex items-center gap-1">
+              <span>Incident Radar • Invariant Guard • Auto-Retro</span>
+            </div>
+          </div>
+
+          {/* Persona 2: SecOps */}
+          <div className="glass-panel rounded-3xl p-6 space-y-4 hover:border-primary/50 transition-all group">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-mono font-bold text-primary uppercase tracking-wider">Breach & Threat Triage</div>
+              <h3 className="text-base font-bold text-foreground mt-0.5">Security Operations & DFIR</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Investigate intrusions without leaking credentials. Automated server-side PII/Secret redaction masks keys and JWTs, while immutable audit trails preserve digital chain-of-custody.
+            </p>
+            <div className="pt-2 border-t border-border/60 text-[11px] font-mono text-primary flex items-center gap-1">
+              <span>DataRedactor • FRE 902 Logs • SSRFGuard</span>
+            </div>
+          </div>
+
+          {/* Persona 3: Architects */}
+          <div className="glass-panel rounded-3xl p-6 space-y-4 hover:border-primary/50 transition-all group">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold">
+              <GitBranch className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-mono font-bold text-purple-400 uppercase tracking-wider">System Design</div>
+              <h3 className="text-base font-bold text-foreground mt-0.5">Software Architects & Tech Leads</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Tackle complex, recurring architectural failures. Traverse recursive 5-Whys causality chains, construct Ishikawa diagrams, and record immutable Architectural Decision Records (ADRs).
+            </p>
+            <div className="pt-2 border-t border-border/60 text-[11px] font-mono text-primary flex items-center gap-1">
+              <span>5-Whys Suite • Fishbone • Decision Log</span>
+            </div>
+          </div>
+
+          {/* Persona 4: Platform Engineers */}
+          <div className="glass-panel rounded-3xl p-6 space-y-4 hover:border-primary/50 transition-all group">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center font-bold">
+              <Network className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider">Distributed Systems</div>
+              <h3 className="text-base font-bold text-foreground mt-0.5">Platform & DevOps Engineers</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Diagnose distributed memory leaks, network partition deadlocks, and cross-service dependencies with the WebGL 2.0 3D spatial network and multi-criteria solution matrix.
+            </p>
+            <div className="pt-2 border-t border-border/60 text-[11px] font-mono text-primary flex items-center gap-1">
+              <span>3D Mesh • Solution Matrix • Local-First Sync</span>
+            </div>
+          </div>
+
+          {/* Persona 5: Compliance & CISOs */}
+          <div className="glass-panel rounded-3xl p-6 space-y-4 hover:border-primary/50 transition-all group">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
+              <Lock className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-wider">Regulatory Defense</div>
+              <h3 className="text-base font-bold text-foreground mt-0.5">Compliance, CISOs & DPOs</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Satisfy GDPR, CCPA, and SEC cyber disclosure mandates. Defend your organization with zero-telemetry hosting, complete data portability, and verifiable proof of resolution.
+            </p>
+            <div className="pt-2 border-t border-border/60 text-[11px] font-mono text-primary flex items-center gap-1">
+              <span>GDPR Art. 17/20 • Zero Telemetry • scrypt</span>
+            </div>
+          </div>
+
+          {/* Persona 6: Engineering Managers */}
+          <div className="glass-panel rounded-3xl p-6 space-y-4 hover:border-primary/50 transition-all group">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold">
+              <Activity className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-mono font-bold text-amber-400 uppercase tracking-wider">Team Execution</div>
+              <h3 className="text-base font-bold text-foreground mt-0.5">Engineering Managers</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Elevate post-mortem culture from blameless to verified. Ensure preventive monitoring controls and systemic action items are assigned, tracked on Kanban, and completed.
+            </p>
+            <div className="pt-2 border-t border-border/60 text-[11px] font-mono text-primary flex items-center gap-1">
+              <span>Action Kanban • Completeness Meter • Blameless Retro</span>
+            </div>
           </div>
         </div>
       </section>

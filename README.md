@@ -51,6 +51,38 @@ Post-Incident Retrospective
 
 ---
 
+## 👥 Who Is ResolveOS For? (Target Personas & Use Cases)
+
+ResolveOS is engineered for organizations and teams that cannot afford ambiguous guesswork, lost diagnostic context, or unverified outage conclusions:
+
+| Persona / Role | Core Pain Points Solved by ResolveOS | Primary Capabilities Used |
+| :--- | :--- | :--- |
+| **Site Reliability Engineers (SREs) & Incident Commanders** | Chaotic Slack war-rooms during Sev-1 outages; untracked investigative leads; premature case closure without empirical proof. | • Real-Time Incident Command Radar<br>• Enforced Verification Invariant (Blocked without PASSED test)<br>• Automated Retrospective Synthesis |
+| **Security Operations & Incident Responders (SecOps / DFIR)** | Leaking credentials, tokens, and PII in ticket trackers; legal challenges to digital chain-of-custody during breach investigations. | • Automated Server-Side PII/Secret Redactor (`DataRedactor`)<br>• Tamper-Evident Audit Trails (FRE 902 / ISO 27037)<br>• SSRFGuard & scrypt Cryptography |
+| **Software Architects & Engineering Leads** | Flaky distributed bugs; recurring architectural regressions; lost rationale when developers depart. | • 12-Stage Scientific Resolution Lifecycle<br>• Recursive 5-Whys Causality Chains & Ishikawa Diagrams<br>• Immutable Architectural Decision Records (ADRs) |
+| **Platform & Infrastructure Engineers** | Hard-to-reproduce memory leaks, network partition anomalies, and multi-component dependency deadlocks. | • Multi-Criteria Weighted Solution Matrix (Cost, Effort, Risk, Impact, Time)<br>• WebGL 2.0 3D Relational Problem Graph<br>• Offline Mutation Queue with 3-Way Differential Merge |
+| **Compliance, CISOs & Data Protection Officers (DPOs)** | Multi-jurisdictional privacy audits (GDPR, CCPA, DPDP); unvetted third-party telemetry; lack of auditability for regulators. | • Zero-Telemetry Architecture (No tracking beacons)<br>• 1-Click JSON/CSV Data Portability<br>• Right to Erasure / Automated Personal Data Anonymization |
+
+---
+
+## 🖼️ Visual Guide & System Walkthrough
+
+| Public Showcase & Landing Page | 12-Stage Scientific Lifecycle Explorer |
+| :---: | :---: |
+| ![Public Landing Page](docs/images/01-landing-hero.png) | ![12-Stage Lifecycle Explorer](docs/images/02-12-stage-lifecycle.png) |
+
+| Live PII & Secrets Redactor Sandbox | Incident Operations Center |
+| :---: | :---: |
+| ![PII Redactor Sandbox](docs/images/03-pii-redactor-sandbox.png) | ![Operations Dashboard](docs/images/04-operations-dashboard.png) |
+
+| 12-Stage Milestone Stepper & Completeness | 3D Relational Problem Mesh (Three.js) |
+| :---: | :---: |
+| ![12-Stage Case Detail](docs/images/05-12-stage-case-detail.png) | ![3D Case Network](docs/images/09-3d-case-mesh.png) |
+
+> 💡 *To customize screenshots, drop your `.png` files into [`docs/images/`](./docs/images/) using the naming conventions in [`docs/images/README.md`](./docs/images/README.md).*
+
+---
+
 ## ✨ Key Features & Capabilities
 
 ### 🛡️ Privacy by Design & Zero Tracking
