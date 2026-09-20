@@ -41,16 +41,22 @@
 
 ## 2. Automated Backup Verification Drill
 
-ResolveOS enforces a weekly backup restoration drill:
+ResolveOS provides an automated verification drill for single-node backup and restoration validation:
 ```bash
-# 1. Download latest compressed dump
-LATEST_BACKUP=$(aws s3 ls s3://resolveos-backups/ | sort | tail -n 1 | awk '{print $4}')
-aws s3 cp s3://resolveos-backups/$LATEST_BACKUP ./test_restore.dump
+# 1. Execute automated backup and restoration verification script
+node scripts/test-backup-restore.cjs
 
-# 2. Restore to isolated drill sandbox database
-createdb -h localhost -U postgres resolveos_drill
-pg_restore -h localhost -U postgres -d resolveos_drill -v ./test_restore.dump
+# 2. Manual Docker Compose Drill:
+# a. Dump live production database
+docker compose exec postgres pg_dump -U resolveos_user -Fc resolveos > ./backups/drill_backup.dump
 
-# 3. Verify data integrity and audit log hash chain
-psql -h localhost -U postgres -d resolveos_drill -c "SELECT COUNT(*) FROM cases; SELECT COUNT(*) FROM audit_events;"
+# b. Create isolated drill sandbox database
+docker compose exec postgres createdb -U resolveos_user resolveos_drill
+
+# c. Restore into drill database
+docker compose exec -T postgres pg_restore -U resolveos_user -d resolveos_drill -c ./backups/drill_backup.dump
+
+# d. Verify data integrity and audit log hash chain
+docker compose exec postgres psql -U resolveos_user -d resolveos_drill -c "SELECT COUNT(*) FROM cases; SELECT COUNT(*) FROM audit_events;"
 ```
+

@@ -238,8 +238,8 @@ ResolveOS has achieved full **Production-Ready, Self-Hostable, Hardened Open-Sou
 - **Environment Interpolation**: `${POSTGRES_PASSWORD:?...}` and `${JWT_SECRET:?...}` ensure container refuses to start if secrets are unset.
 
 ### Operational Runbooks & Disaster Recovery
-- Point-in-time PostgreSQL backup and restoration documented in `docs/DISASTER_RECOVERY.md`.
-- Observability and Prometheus metrics endpoints detailed in `docs/OPERATIONS.md`.
+- PostgreSQL logical backup, clean restore runbooks, and verification drills documented in `docs/BACKUP_RESTORE.md` and `docs/DISASTER_RECOVERY.md`.
+- Observability and health/readiness endpoints detailed in `docs/OPERATIONS.md`.
 - Zero-downtime deployment guidance provided in `docs/DEPLOYMENT.md`.
 
 ---
