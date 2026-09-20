@@ -184,28 +184,29 @@ ResolveOS has achieved full **Production-Ready, Self-Hostable, Hardened Open-Sou
 | :--- | :--- | :--- | :--- |
 | **End-to-End Acceptance** | `tests/e2e/production-scenario-28.test.ts` | 1 | 100% |
 | **Lifecycle & Verification**| `tests/e2e/resolution-lifecycle.test.ts` | 6 | 100% |
-| **PostgreSQL Persistence** | `tests/security/database-real-postgres.test.ts` | 6 | 100% |
-| **Tenant Isolation (IDOR)** | `tests/security/idor.test.ts` | 8 | 100% |
-| **Audit Hash Chain** | `tests/security/tamper-audit.test.ts` | 3 | 100% |
-| **WebSocket Security** | `tests/security/websocket-security.test.ts` | 4 | 100% |
-| **Prompt Injection & AI** | `tests/security/prompt-injection.test.ts` | 3 | 100% |
-| **AI Evaluation Benchmark**| `tests/security/ai-evaluation.test.ts` | 5 | 100% |
-| **SSRF Defense** | `tests/security/ssrf.test.ts` | 6 | 100% |
-| **Path Traversal Defense** | `tests/security/path-traversal.test.ts` | 5 | 100% |
-| **RFC 6238 TOTP MFA** | `tests/security/totp-rfc.test.ts` | 5 | 100% |
+| **API Integration & Health**| `tests/integration/api.test.ts` | 16 | 100% |
+| **Backup & Restore Drill**| `tests/integration/backup-restore.test.ts` | 1 | 100% |
+| **AI Evaluation Benchmark**| `tests/security/ai-evaluation.test.ts` | 1 | 100% |
 | **Authentication & 2FA** | `tests/security/auth.test.ts` | 7 | 100% |
-| **Concurrency & Merging** | `tests/security/concurrency.test.ts` | 4 | 100% |
+| **Concurrency & Merging** | `tests/security/concurrency.test.ts` | 2 | 100% |
+| **PostgreSQL Persistence** | `tests/security/database-real-postgres.test.ts` | 7 | 100% |
+| **Tenant Isolation (IDOR)** | `tests/security/idor.test.ts` | 8 | 100% |
+| **Path Traversal Defense** | `tests/security/path-traversal.test.ts` | 5 | 100% |
+| **Prompt Injection & AI** | `tests/security/prompt-injection.test.ts` | 3 | 100% |
+| **Security Regression** | `tests/security/security-regression.test.ts` | 4 | 100% |
+| **SSRF Defense** | `tests/security/ssrf.test.ts` | 6 | 100% |
 | **Sync Concurrency** | `tests/security/sync-concurrency.test.ts` | 3 | 100% |
-| **Security Regression** | `tests/security/security-regression.test.ts` | 8 | 100% |
-| **Database Engine** | `tests/security/database.test.ts` | 8 | 100% |
-| **Domain Logic** | `tests/unit/domain.test.ts` | 9 | 100% |
-| **API Integration** | `tests/integration/api.test.ts` | 8 | 100% |
-| **TOTAL** | **18 test suites** | **99** | **100%** |
+| **Audit Hash Chain** | `tests/security/tamper-audit.test.ts` | 4 | 100% |
+| **RFC 6238 TOTP MFA** | `tests/security/totp-rfc.test.ts` | 5 | 100% |
+| **WebSocket Security** | `tests/security/websocket-security.test.ts` | 4 | 100% |
+| **Domain Logic** | `tests/unit/domain.test.ts` | 8 | 100% |
+| **Security Primitives** | `tests/unit/security.test.ts` | 7 | 100% |
+| **TOTAL** | **19 test suites** | **98** | **100%** |
 
 ### Automated Production Gates (`scripts/production-readiness-check.cjs`)
 1. Monorepo Workspaces & Package Topology: **PASS**
 2. Strict TypeScript Typecheck (0 Errors): **PASS**
-3. Vitest Automated Test Suite (99/99 Tests): **PASS**
+3. Vitest Automated Test Suite (98/98 Tests): **PASS**
 4. Monorepo Production Build & Bundle: **PASS**
 5. Biome Static Analysis & Lint Hygiene (0 Errors): **PASS**
 6. Secrets & Credential Leakage Scan: **PASS**
