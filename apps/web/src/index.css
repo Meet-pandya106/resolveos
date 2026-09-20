@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 98%;
+    --foreground: 224 71% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 71% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71% 4%;
+    --primary: 215 90% 48%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 220 14% 94%;
+    --secondary-foreground: 220 30% 15%;
+    --muted: 220 14% 94%;
+    --muted-foreground: 220 10% 45%;
+    --accent: 220 14% 92%;
+    --accent-foreground: 224 71% 4%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 215 90% 48%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 224 25% 7%;
+    --foreground: 210 20% 96%;
+    --card: 224 22% 10%;
+    --card-foreground: 210 20% 96%;
+    --popover: 224 22% 10%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 210 95% 58%;
+    --primary-foreground: 224 71% 4%;
+    --secondary: 224 16% 16%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 224 16% 16%;
+    --muted-foreground: 215 15% 65%;
+    --accent: 224 16% 18%;
+    --accent-foreground: 210 20% 96%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 224 16% 18%;
+    --input: 224 16% 18%;
+    --ring: 210 95% 58%;
+  }
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.reduced-motion * {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.45);
+}

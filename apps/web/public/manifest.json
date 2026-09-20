@@ -1,0 +1,16 @@
+{
+  "name": "ResolveOS — Problem Resolution Operating System",
+  "short_name": "ResolveOS",
+  "description": "Privacy-first problem-solving workspace for engineering and operations teams.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0f1d",
+  "theme_color": "#38bdf8",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

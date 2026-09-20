@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@resolveos/shared": ["./packages/shared/src/index.ts"],
+      "@resolveos/domain": ["./packages/domain/src/index.ts"],
+      "@resolveos/validation": ["./packages/validation/src/index.ts"],
+      "@resolveos/security": ["./packages/security/src/index.ts"],
+      "@resolveos/database": ["./packages/database/src/index.ts"]
+    }
+  },
+  "include": ["packages/**/*", "apps/**/*", "tests/**/*"]
+}

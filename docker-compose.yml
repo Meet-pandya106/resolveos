@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  resolveos-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DATABASE_URL=postgres://resolveos_user:resolveos_secret@postgres:5432/resolveos
+      - JWT_SECRET=resolveos_production_docker_jwt_secret_key_32_chars
+      - SESSION_SECRET=resolveos_production_docker_session_secret_key_32_chars
+      - CORS_ORIGIN=http://localhost:5173,http://localhost:4000
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=resolveos_user
+      - POSTGRES_PASSWORD=resolveos_secret
+      - POSTGRES_DB=resolveos
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
