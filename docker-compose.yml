@@ -1,19 +1,22 @@
 version: '3.8'
 
+# ResolveOS Production Compose Configuration
+# Copy .env.example to .env and configure strong production secrets prior to deployment.
+
 services:
   resolveos-api:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "4000:4000"
+      - "${PORT:-4000}:4000"
     environment:
       - NODE_ENV=production
       - PORT=4000
-      - DATABASE_URL=postgres://resolveos_user:resolveos_secret@postgres:5432/resolveos
-      - JWT_SECRET=resolveos_production_docker_jwt_secret_key_32_chars
-      - SESSION_SECRET=resolveos_production_docker_session_secret_key_32_chars
-      - CORS_ORIGIN=http://localhost:5173,http://localhost:4000
+      - DATABASE_URL=postgres://${POSTGRES_USER:-resolveos_user}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in .env}@postgres:5432/${POSTGRES_DB:-resolveos}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required in .env}
+      - SESSION_SECRET=${SESSION_SECRET:?SESSION_SECRET is required in .env}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173,http://localhost:4000}
     depends_on:
       postgres:
         condition: service_healthy
@@ -28,16 +31,17 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      - POSTGRES_USER=resolveos_user
-      - POSTGRES_PASSWORD=resolveos_secret
-      - POSTGRES_DB=resolveos
+      - POSTGRES_USER=${POSTGRES_USER:-resolveos_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in .env}
+      - POSTGRES_DB=${POSTGRES_DB:-resolveos}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     restart: unless-stopped
+    # Port is internal to Docker network for security. Uncomment for local debugging if needed:
+    # ports:
+    #   - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U resolveos_user -d resolveos"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-resolveos_user} -d ${POSTGRES_DB:-resolveos}"]
       interval: 10s
       timeout: 5s
       retries: 5

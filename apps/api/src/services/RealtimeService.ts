@@ -4,170 +4,260 @@
  * Strictly enforces server-side tenant isolation and workspace membership authorization for subscriptions.
  */
 
-import { WebSocket } from 'ws';
-import { getDatabase, workspaceMembers, cases, eq, and } from '@resolveos/database';
+import {
+	and,
+	cases,
+	eq,
+	getDatabase,
+	workspaceMembers,
+} from "@resolveos/database";
+import crypto from "crypto";
+import { WebSocket } from "ws";
 
 interface ClientConnection {
-  ws: WebSocket;
-  userId: string;
-  workspaceIds: Set<string>;
-  activeCaseId?: string | null;
+	ws: WebSocket;
+	userId: string;
+	workspaceIds: Set<string>;
+	activeCaseId?: string | null;
+}
+
+interface WsTicketRecord {
+	userId: string;
+	expiresAt: number;
 }
 
 export class RealtimeService {
-  private static clients = new Set<ClientConnection>();
+	private static clients = new Set<ClientConnection>();
+	private static wsTickets = new Map<string, WsTicketRecord>();
 
-  static registerClient(ws: WebSocket, userId: string, initialWorkspaceId?: string): ClientConnection {
-    const db = getDatabase();
-    const authorizedWorkspaces = new Set<string>();
+	/**
+	 * Issues a short-lived, single-use ticket for secure WebSocket handshake without long-lived tokens in URLs.
+	 */
+	static issueTicket(userId: string): { ticket: string; expiresInSeconds: number } {
+		const ticket = crypto.randomBytes(32).toString("hex");
+		this.wsTickets.set(ticket, {
+			userId,
+			expiresAt: Date.now() + 60000, // 60s TTL
+		});
+		return { ticket, expiresInSeconds: 60 };
+	}
 
-    // If initial workspace requested, verify membership before subscribing
-    if (initialWorkspaceId) {
-      const membership = db
-        .select()
-        .from(workspaceMembers)
-        .where(and(eq(workspaceMembers.workspaceId, initialWorkspaceId), eq(workspaceMembers.userId, userId)))
-        .get();
-      if (membership) {
-        authorizedWorkspaces.add(initialWorkspaceId);
-      }
-    }
+	/**
+	 * Validates and atomically consumes (burns) a one-time ticket.
+	 */
+	static consumeTicket(ticket: string): string | null {
+		const record = this.wsTickets.get(ticket);
+		if (!record) return null;
+		this.wsTickets.delete(ticket); // Burn on use
+		if (Date.now() > record.expiresAt) {
+			return null;
+		}
+		return record.userId;
+	}
 
-    const client: ClientConnection = {
-      ws,
-      userId,
-      workspaceIds: authorizedWorkspaces,
-      activeCaseId: null
-    };
+	static registerClient(
+		ws: WebSocket,
+		userId: string,
+		initialWorkspaceId?: string,
+	): ClientConnection {
+		const db = getDatabase();
+		const authorizedWorkspaces = new Set<string>();
 
-    this.clients.add(client);
+		// If initial workspace requested, verify membership before subscribing
+		if (initialWorkspaceId) {
+			const membership = db
+				.select()
+				.from(workspaceMembers)
+				.where(
+					and(
+						eq(workspaceMembers.workspaceId, initialWorkspaceId),
+						eq(workspaceMembers.userId, userId),
+					),
+				)
+				.get();
+			if (membership) {
+				authorizedWorkspaces.add(initialWorkspaceId);
+			}
+		}
 
-    ws.on('message', (raw) => {
-      try {
-        // Enforce maximum frame size limit (16KB)
-        if (raw.toString().length > 16384) {
-          ws.send(JSON.stringify({ type: 'ERROR', message: 'Payload exceeds maximum allowed frame size (16KB)' }));
-          return;
-        }
+		const client: ClientConnection = {
+			ws,
+			userId,
+			workspaceIds: authorizedWorkspaces,
+			activeCaseId: null,
+		};
 
-        const msg = JSON.parse(raw.toString());
+		this.clients.add(client);
 
-        if (msg.type === 'SUBSCRIBE_WORKSPACE' && msg.workspaceId) {
-          const dbInstance = getDatabase();
-          const membership = dbInstance
-            .select()
-            .from(workspaceMembers)
-            .where(and(eq(workspaceMembers.workspaceId, msg.workspaceId), eq(workspaceMembers.userId, client.userId)))
-            .get();
+		ws.on("message", (raw) => {
+			try {
+				// Enforce maximum frame size limit (16KB)
+				if (raw.toString().length > 16384) {
+					ws.send(
+						JSON.stringify({
+							type: "ERROR",
+							message: "Payload exceeds maximum allowed frame size (16KB)",
+						}),
+					);
+					return;
+				}
 
-          if (!membership) {
-            ws.send(JSON.stringify({
-              type: 'ERROR',
-              error: 'Forbidden',
-              message: 'Unauthorized workspace subscription rejected. User is not a member of this workspace.',
-              workspaceId: msg.workspaceId
-            }));
-            return;
-          }
+				const msg = JSON.parse(raw.toString());
 
-          client.workspaceIds.add(msg.workspaceId);
-          ws.send(JSON.stringify({ type: 'SUBSCRIBED', workspaceId: msg.workspaceId }));
-        } else if (msg.type === 'FOCUS_CASE' && msg.caseId) {
-          const dbInstance = getDatabase();
-          const targetCase = dbInstance
-            .select()
-            .from(cases)
-            .where(and(eq(cases.id, msg.caseId), eq(cases.deletedAt, null as any)))
-            .get();
+				if (msg.type === "SUBSCRIBE_WORKSPACE" && msg.workspaceId) {
+					const dbInstance = getDatabase();
+					const membership = dbInstance
+						.select()
+						.from(workspaceMembers)
+						.where(
+							and(
+								eq(workspaceMembers.workspaceId, msg.workspaceId),
+								eq(workspaceMembers.userId, client.userId),
+							),
+						)
+						.get();
 
-          if (!targetCase) {
-            ws.send(JSON.stringify({ type: 'ERROR', error: 'NotFound', message: 'Case not found' }));
-            return;
-          }
+					if (!membership) {
+						ws.send(
+							JSON.stringify({
+								type: "ERROR",
+								error: "Forbidden",
+								message:
+									"Unauthorized workspace subscription rejected. User is not a member of this workspace.",
+								workspaceId: msg.workspaceId,
+							}),
+						);
+						return;
+					}
 
-          const membership = dbInstance
-            .select()
-            .from(workspaceMembers)
-            .where(and(eq(workspaceMembers.workspaceId, targetCase.workspaceId), eq(workspaceMembers.userId, client.userId)))
-            .get();
+					client.workspaceIds.add(msg.workspaceId);
+					ws.send(
+						JSON.stringify({
+							type: "SUBSCRIBED",
+							workspaceId: msg.workspaceId,
+						}),
+					);
+				} else if (msg.type === "FOCUS_CASE" && msg.caseId) {
+					const dbInstance = getDatabase();
+					const targetCase = dbInstance
+						.select()
+						.from(cases)
+						.where(
+							and(eq(cases.id, msg.caseId), eq(cases.deletedAt, null as any)),
+						)
+						.get();
 
-          if (!membership) {
-            ws.send(JSON.stringify({
-              type: 'ERROR',
-              error: 'Forbidden',
-              message: 'Unauthorized case subscription rejected. User does not have access to the parent workspace.'
-            }));
-            return;
-          }
+					if (!targetCase) {
+						ws.send(
+							JSON.stringify({
+								type: "ERROR",
+								error: "NotFound",
+								message: "Case not found",
+							}),
+						);
+						return;
+					}
 
-          client.activeCaseId = msg.caseId;
-          ws.send(JSON.stringify({ type: 'CASE_FOCUSED', caseId: msg.caseId }));
-        } else if (msg.type === 'PING') {
-          ws.send(JSON.stringify({ type: 'PONG', timestamp: Date.now() }));
-        }
-      } catch (err) {
-        // Ignore malformed client message
-      }
-    });
+					const membership = dbInstance
+						.select()
+						.from(workspaceMembers)
+						.where(
+							and(
+								eq(workspaceMembers.workspaceId, targetCase.workspaceId),
+								eq(workspaceMembers.userId, client.userId),
+							),
+						)
+						.get();
 
-    ws.on('close', () => {
-      this.clients.delete(client);
-    });
+					if (!membership) {
+						ws.send(
+							JSON.stringify({
+								type: "ERROR",
+								error: "Forbidden",
+								message:
+									"Unauthorized case subscription rejected. User does not have access to the parent workspace.",
+							}),
+						);
+						return;
+					}
 
-    return client;
-  }
+					client.activeCaseId = msg.caseId;
+					ws.send(JSON.stringify({ type: "CASE_FOCUSED", caseId: msg.caseId }));
+				} else if (msg.type === "PING") {
+					ws.send(JSON.stringify({ type: "PONG", timestamp: Date.now() }));
+				}
+			} catch (err) {
+				// Ignore malformed client message
+			}
+		});
 
-  static broadcastToWorkspace(workspaceId: string, eventType: string, payload: any, senderUserId?: string): void {
-    const message = JSON.stringify({
-      type: eventType,
-      workspaceId,
-      payload,
-      timestamp: new Date().toISOString()
-    });
+		ws.on("close", () => {
+			this.clients.delete(client);
+		});
 
-    this.clients.forEach((client) => {
-      if (client.workspaceIds.has(workspaceId)) {
-        if (client.ws.readyState === WebSocket.OPEN) {
-          client.ws.send(message);
-        }
-      }
-    });
-  }
+		return client;
+	}
 
-  static broadcastToCase(caseId: string, eventType: string, payload: any): void {
-    const message = JSON.stringify({
-      type: eventType,
-      caseId,
-      payload,
-      timestamp: new Date().toISOString()
-    });
+	static broadcastToWorkspace(
+		workspaceId: string,
+		eventType: string,
+		payload: any,
+		senderUserId?: string,
+	): void {
+		const message = JSON.stringify({
+			type: eventType,
+			workspaceId,
+			payload,
+			timestamp: new Date().toISOString(),
+		});
 
-    this.clients.forEach((client) => {
-      if (client.activeCaseId === caseId) {
-        if (client.ws.readyState === WebSocket.OPEN) {
-          client.ws.send(message);
-        }
-      }
-    });
-  }
+		this.clients.forEach((client) => {
+			if (client.workspaceIds.has(workspaceId)) {
+				if (client.ws.readyState === WebSocket.OPEN) {
+					client.ws.send(message);
+				}
+			}
+		});
+	}
 
-  static sendToUser(userId: string, eventType: string, payload: any): void {
-    const message = JSON.stringify({
-      type: eventType,
-      payload,
-      timestamp: new Date().toISOString()
-    });
+	static broadcastToCase(
+		caseId: string,
+		eventType: string,
+		payload: any,
+	): void {
+		const message = JSON.stringify({
+			type: eventType,
+			caseId,
+			payload,
+			timestamp: new Date().toISOString(),
+		});
 
-    this.clients.forEach((client) => {
-      if (client.userId === userId) {
-        if (client.ws.readyState === WebSocket.OPEN) {
-          client.ws.send(message);
-        }
-      }
-    });
-  }
+		this.clients.forEach((client) => {
+			if (client.activeCaseId === caseId) {
+				if (client.ws.readyState === WebSocket.OPEN) {
+					client.ws.send(message);
+				}
+			}
+		});
+	}
 
-  static getClientCount(): number {
-    return this.clients.size;
-  }
+	static sendToUser(userId: string, eventType: string, payload: any): void {
+		const message = JSON.stringify({
+			type: eventType,
+			payload,
+			timestamp: new Date().toISOString(),
+		});
+
+		this.clients.forEach((client) => {
+			if (client.userId === userId) {
+				if (client.ws.readyState === WebSocket.OPEN) {
+					client.ws.send(message);
+				}
+			}
+		});
+	}
+
+	static getClientCount(): number {
+		return this.clients.size;
+	}
 }

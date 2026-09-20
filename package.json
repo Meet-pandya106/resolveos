@@ -17,8 +17,8 @@
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:security": "vitest run tests/security",
-    "test:watch": "vitest",
-    "lint": "echo 'All packages passed lint checks'",
+    "lint": "biome lint",
+    "lint:fix": "biome check --write",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "db:seed": "tsx apps/api/src/scripts/seed.ts",
     "prepublish:check": "node scripts/prepublish-security-check.cjs",
@@ -26,6 +26,7 @@
     "readiness:check": "node scripts/production-readiness-check.cjs"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.14",
     "@types/node": "^22.13.9",
     "@types/pg": "^8.23.1",
     "@types/ws": "^8.18.1",

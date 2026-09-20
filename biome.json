@@ -1,0 +1,59 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "packages/**/*.ts",
+      "packages/**/*.tsx",
+      "apps/**/*.ts",
+      "apps/**/*.tsx",
+      "tests/**/*.ts",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/*.d.ts",
+      "!**/resolveos.db.json"
+    ]
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "a11y": {
+        "recommended": false
+      },
+      "complexity": {
+        "noThisInStatic": "off",
+        "noStaticOnlyClass": "off",
+        "noBannedTypes": "off",
+        "useOptionalChain": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noAssignInExpressions": "off",
+        "noImplicitAnyLet": "off",
+        "noArrayIndexKey": "off",
+        "noControlCharactersInRegex": "off",
+        "noCommentText": "off",
+        "useIterableCallbackReturn": "off",
+        "useBiomeIgnoreFolder": "off"
+      },
+      "style": {
+        "useConst": "warn",
+        "useImportType": "off",
+        "noNonNullAssertion": "off",
+        "useNodejsImportProtocol": "off"
+      },
+      "correctness": {
+        "noUnusedVariables": "off",
+        "noUnusedImports": "off",
+        "noUnusedFunctionParameters": "off",
+        "useExhaustiveDependencies": "off"
+      }
+    }
+  }
+}

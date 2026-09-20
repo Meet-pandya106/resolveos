@@ -47,7 +47,7 @@ runGate(2, 'Strict TypeScript Typecheck (0 Errors)', () => {
 });
 
 // Gate 03: Full Automated Test Suite
-runGate(3, 'Vitest Automated Test Suite (84/84 Tests)', () => {
+runGate(3, 'Vitest Automated Test Suite (99/99 Tests)', () => {
   execSync('npm test', { cwd: projectRoot, encoding: 'utf8', stdio: 'pipe' });
 });
 
@@ -56,8 +56,13 @@ runGate(4, 'Monorepo Production Build & Bundle', () => {
   execSync('npm run build', { cwd: projectRoot, encoding: 'utf8', stdio: 'pipe' });
 });
 
-// Gate 05: Secret Scanning & Token Hygiene
-runGate(5, 'Secrets & Credential Leakage Scan', () => {
+// Gate 05: Real Static Analysis & Biome Linter
+runGate(5, 'Biome Static Analysis & Lint Hygiene (0 Errors)', () => {
+  execSync('npm run lint', { cwd: projectRoot, encoding: 'utf8', stdio: 'pipe' });
+});
+
+// Gate 06: Secret Scanning & Token Hygiene
+runGate(6, 'Secrets & Credential Leakage Scan', () => {
   const sensitivePatterns = [
     /sk_live_[a-zA-Z0-9]{20,}/,
     /sk_test_[a-zA-Z0-9]{20,}/,
@@ -86,53 +91,48 @@ runGate(5, 'Secrets & Credential Leakage Scan', () => {
   scanDir(projectRoot);
 });
 
-// Gate 06: Tenant Isolation & IDOR Defense
-runGate(6, 'Tenant Isolation & IDOR/BOLA Defense', () => {
+// Gate 07: Tenant Isolation & IDOR Defense
+runGate(7, 'Tenant Isolation & IDOR/BOLA Defense', () => {
   execSync('npx vitest run tests/security/idor.test.ts', { cwd: projectRoot, encoding: 'utf8', stdio: 'pipe' });
 });
 
-// Gate 07: Cryptographic Tamper-Evident Audit Chain
-runGate(7, 'Tamper-Evident SHA-256 Audit Chain', () => {
+// Gate 08: Cryptographic Tamper-Evident Audit Chain
+runGate(8, 'Tamper-Evident SHA-256 Audit Chain', () => {
   execSync('npx vitest run tests/security/tamper-audit.test.ts', { cwd: projectRoot, encoding: 'utf8', stdio: 'pipe' });
 });
 
-// Gate 08: AI Injection Defense & Safe Fallback
-runGate(8, 'AI Prompt Sandboxing & Deterministic Fallback', () => {
+// Gate 09: AI Injection Defense & Safe Fallback
+runGate(9, 'AI Prompt Sandboxing & Deterministic Fallback', () => {
   execSync('npx vitest run tests/security/prompt-injection.test.ts tests/security/ai-evaluation.test.ts', { cwd: projectRoot, encoding: 'utf8', stdio: 'pipe' });
 });
 
-// Gate 09: Concurrency, Optimistic Locking & 3-Way Merge
-runGate(9, 'Concurrency & 3-Way Merge Engine', () => {
+// Gate 10: Concurrency, Optimistic Locking & 3-Way Merge
+runGate(10, 'Concurrency & 3-Way Merge Engine', () => {
   execSync('npx vitest run tests/security/concurrency.test.ts tests/security/sync-concurrency.test.ts', { cwd: projectRoot, encoding: 'utf8', stdio: 'pipe' });
 });
 
-// Gate 10: RFC 6238 TOTP Multi-Factor Authentication
-runGate(10, 'RFC 6238 TOTP MFA & Anti-Replay Protection', () => {
+// Gate 11: RFC 6238 TOTP Multi-Factor Authentication
+runGate(11, 'RFC 6238 TOTP MFA & Anti-Replay Protection', () => {
   execSync('npx vitest run tests/security/totp-rfc.test.ts', { cwd: projectRoot, encoding: 'utf8', stdio: 'pipe' });
 });
 
-// Gate 11: Zero-SSRF Defense Guard
-runGate(11, 'SSRF Defense Guard (IPv4, IPv6 ULA, Rebinding)', () => {
+// Gate 12: Zero-SSRF Defense Guard
+runGate(12, 'SSRF Defense Guard (IPv4, IPv6 ULA, Rebinding)', () => {
   execSync('npx vitest run tests/security/ssrf.test.ts', { cwd: projectRoot, encoding: 'utf8', stdio: 'pipe' });
 });
 
-// Gate 12: Path Traversal & Sanitization
-runGate(12, 'Path Traversal & Absolute Path Sanitizer', () => {
+// Gate 13: Path Traversal & Sanitization
+runGate(13, 'Path Traversal & Absolute Path Sanitizer', () => {
   execSync('npx vitest run tests/security/path-traversal.test.ts', { cwd: projectRoot, encoding: 'utf8', stdio: 'pipe' });
 });
 
-// Gate 13: WebSocket Security & Tenant Scoping
-runGate(13, 'WebSocket Auth, Tenant Scoping & 16KB Limit', () => {
+// Gate 14: WebSocket Security & Tenant Scoping
+runGate(14, 'WebSocket Auth, Single-Use Tickets & Tenant Scoping', () => {
   execSync('npx vitest run tests/security/websocket-security.test.ts', { cwd: projectRoot, encoding: 'utf8', stdio: 'pipe' });
 });
 
-// Gate 14: End-to-End Problem Resolution Lifecycle
-runGate(14, '12-Stage Lifecycle & Verification Gate', () => {
-  execSync('npx vitest run tests/e2e/resolution-lifecycle.test.ts', { cwd: projectRoot, encoding: 'utf8', stdio: 'pipe' });
-});
-
-// Gate 15: Canonical PostgreSQL Database & Migration DDL
-runGate(15, 'Canonical PostgreSQL Schema & Migration DDL', () => {
+// Gate 15: Real PostgreSQL Persistence & DDL Verification
+runGate(15, 'Real PostgreSQL Implementation & Zero-Fallback DDL', () => {
   const migrationFile = path.join(projectRoot, 'packages/database/migrations/0001_initial_schema.sql');
   if (!fs.existsSync(migrationFile)) {
     throw new Error('Missing PostgreSQL migration DDL: 0001_initial_schema.sql');
@@ -144,10 +144,21 @@ runGate(15, 'Canonical PostgreSQL Schema & Migration DDL', () => {
       throw new Error(`DDL missing required table definition: ${table}`);
     }
   }
+  execSync('npx vitest run tests/security/database-real-postgres.test.ts', { cwd: projectRoot, encoding: 'utf8', stdio: 'pipe' });
 });
 
-// Gate 16: Container Hardening & Non-Root Execution
-runGate(16, 'Container Hardening (USER node & Healthcheck)', () => {
+// Gate 16: End-to-End Problem Resolution Lifecycle
+runGate(16, '12-Stage Lifecycle & Verification Gate', () => {
+  execSync('npx vitest run tests/e2e/resolution-lifecycle.test.ts', { cwd: projectRoot, encoding: 'utf8', stdio: 'pipe' });
+});
+
+// Gate 17: Rule 121 28-Step Production Acceptance Scenario
+runGate(17, 'Rule 121 28-Step Live Integration Scenario', () => {
+  execSync('npx vitest run tests/e2e/production-scenario-28.test.ts', { cwd: projectRoot, encoding: 'utf8', stdio: 'pipe' });
+});
+
+// Gate 18: Container Hardening & Non-Root Execution
+runGate(18, 'Container Hardening (USER node & Healthcheck)', () => {
   const dockerfile = fs.readFileSync(path.join(projectRoot, 'Dockerfile'), 'utf8');
   if (!dockerfile.includes('USER node')) {
     throw new Error('Dockerfile does not enforce non-root USER node');
@@ -157,8 +168,8 @@ runGate(16, 'Container Hardening (USER node & Healthcheck)', () => {
   }
 });
 
-// Gate 17: Complete Documentation Suite Integrity
-runGate(17, 'Core Documentation & Verification Artifacts', () => {
+// Gate 19: Complete Documentation Suite Integrity
+runGate(19, 'Core Documentation & Verification Artifacts', () => {
   const requiredDocs = [
     'README.md',
     'SECURITY.md',
@@ -177,7 +188,8 @@ runGate(17, 'Core Documentation & Verification Artifacts', () => {
     'docs/DEPLOYMENT.md',
     'docs/OPERATIONS.md',
     'docs/PRIVACY.md',
-    'docs/TESTING.md'
+    'docs/TESTING.md',
+    'docs/FINAL_PRODUCTION_REVIEW.md'
   ];
   for (const doc of requiredDocs) {
     const docPath = path.join(projectRoot, doc);
