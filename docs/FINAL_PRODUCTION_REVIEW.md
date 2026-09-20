@@ -295,7 +295,7 @@ ResolveOS has achieved full **Production-Ready, Self-Hostable, Hardened Open-Sou
 | **`.env` Exposed Secrets** | Critical | Yes | `git ls-files .env*` & `git log` scan | `.env` was confirmed never tracked in git history; `.gitignore` enforced; `.env.example` scrubbed of default secrets. |
 | **`resolveos.db.json` Leftovers** | Critical | Yes | `git ls-files resolveos.db.json` | Removed local residual files; `.gitignore` enforced; zero database JSON files tracked in git. |
 | **PostgreSQL Persistence** | Critical | Yes | `tests/security/database-real-postgres.test.ts` | Production engine uses parameterized SQL, connection pool, transactional rollback, zero memory fallback. |
-| **Stale README Test Count** | High | Yes | `README.md` | Badge and documentation updated from stale 84 to verified 95 tests across 18 suites. |
+| **Stale README Test Count** | High | Yes | `README.md` | Badge and documentation updated from stale initial baseline to verified 98 tests across 19 suites. |
 | **README Setup Flow** | High | Yes | `README.md` | Comprehensive clone, configure, PostgreSQL launch, build, seed, and run instructions added. |
 | **Dynamic Health Version** | Medium | Yes | `apps/api/src/index.ts` | `/health` dynamically reads version from `package.json` rather than hardcoding. |
 | **Graceful Process Shutdown** | High | Yes | `apps/api/src/index.ts` | Added `SIGTERM` and `SIGINT` handlers that cleanly close Fastify HTTP server and PostgreSQL pool. |

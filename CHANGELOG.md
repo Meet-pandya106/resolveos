@@ -22,5 +22,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Active device session tracking and one-click remote revocation.
 - **Offline-First Resilience**: Local mutation queue with automatic reconnect synchronization and 3-way conflict resolution.
 - **Authenticated Real-Time WebSockets**: Token-verified WebSocket connection for live collaborative case updates.
-- **Automated Test Suite**: 33 Vitest tests spanning domain logic, cryptographic security, IDOR regression, and end-to-end API flows.
-- **DevOps & Containers**: Multi-stage Dockerfile and Docker Compose configuration.
+- **Automated Test Suite**: 98 Vitest tests across 19 suites spanning domain logic, cryptographic security, IDOR regression, backup/restore, and end-to-end API flows.
+- **DevOps & Containers**: Multi-stage Dockerfile and Docker Compose configuration with non-root execution (`USER node`) and container healthchecks.

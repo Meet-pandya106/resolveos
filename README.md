@@ -10,7 +10,7 @@ A privacy-first, local-first Problem Resolution Operating System for engineering
 [![Fastify](https://img.shields.io/badge/Fastify-5.2-black?logo=fastify)](https://fastify.dev/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react)](https://react.dev/)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
-[![Vitest](https://img.shields.io/badge/Tests-95%20Passed-brightgreen)](https://vitest.dev/)
+[![Vitest](https://img.shields.io/badge/Tests-98%20Passed-brightgreen)](https://vitest.dev/)
 [![Security](https://img.shields.io/badge/Security-Hardened-success)](./docs/SECURITY.md)
 [![License](https://img.shields.io/badge/License-MIT-purple)](./LICENSE)
 
@@ -201,7 +201,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## 🧪 Testing & Verification
 
-ResolveOS includes 95 automated tests across 18 suites covering domain logic, cryptographic security, IDOR regression, concurrency, and end-to-end API flows:
+ResolveOS includes 98 automated tests across 19 suites covering domain logic, cryptographic security, IDOR regression, concurrency, backup/restore, and end-to-end API flows:
 
 ```bash
 # Run all Vitest suites
@@ -234,7 +234,7 @@ resolveos/
 │   └── web/          # React 18 SPA, Zustand, TanStack Query, Three.js 3D graph
 ├── tests/
 │   ├── unit/         # Unit tests for domain logic & security primitives
-│   ├── integration/  # End-to-end lifecycle API integration tests
+│   ├── integration/  # End-to-end lifecycle & backup-restore API integration tests
 │   ├── security/     # Security regression tests (IDOR, SSRF, TOTP, AI injection)
 │   └── e2e/          # 12-Stage resolution lifecycle tests
 └── docs/             # Technical, Security, Disaster Recovery, and Audit documentation
@@ -249,6 +249,7 @@ resolveos/
 - [Claims & Verification Matrix (CLAIMS.md)](./docs/CLAIMS.md)
 - [Engineering Change Ledger (CHANGE_LEDGER.md)](./docs/CHANGE_LEDGER.md)
 - [Canonical Database & Migration Guide (DATABASE.md)](./docs/DATABASE.md)
+- [Database Backup & Disaster Recovery Guide (BACKUP_RESTORE.md)](./docs/BACKUP_RESTORE.md)
 - [Threat Model & Attack Surface (THREAT_MODEL.md)](./docs/THREAT_MODEL.md)
 - [Security Architecture & Controls (SECURITY.md)](./docs/SECURITY.md)
 - [AI Security & Defense-in-Depth (AI_SECURITY.md)](./docs/AI_SECURITY.md)
