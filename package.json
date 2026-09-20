@@ -24,7 +24,6 @@
     "prepublish:check": "node scripts/prepublish-security-check.cjs"
   },
   "devDependencies": {
-    "@rollup/rollup-win32-x64-msvc": "^4.63.4",
     "@types/node": "^22.13.9",
     "@types/ws": "^8.18.1",
     "concurrently": "^9.1.2",

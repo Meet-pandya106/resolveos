@@ -34,3 +34,6 @@ jobs:
 
       - name: Production Build
         run: npm run build
+
+      - name: Security & Hygiene Audit
+        run: node scripts/prepublish-security-check.cjs
